@@ -313,7 +313,7 @@ body.lite .fog,body.lite .beacon{display:none}
             <input type="radio" name="mode" value="zombie" id="modeZombie" checked>
             <span class="ico"><svg viewBox="0 0 32 32" fill="currentColor"><circle cx="18" cy="6" r="3.5"/><path d="M15 10.5h5l1.6 7.5 6.6-2.2.6 1.9-8.2 3.4-1.3-3.2-.8 3.9 3.5 9.2h-2.8l-3-7.3-3.4 7.3H10l3.6-9.9.5-5.8-4.5 3.4-1.2-1.6Z"/></svg></span>
             <b>좀비 생존자 추첨</b>
-            <span>좀비 떼가 도망치는 학생들을 쫓습니다. 붙잡힌 학생은 좀비가 되어 추격에 합류하고, 끝까지 남은 1명이 최후의 생존자.</span>
+            <span>좀비 떼가 도망치는 학생들을 쫓습니다. 붙잡힌 학생은 좀비가 되어 추격에 합류하고, 끝까지 남은 1명이 최후의 생존자. 시작하면 끝까지 자동으로 진행됩니다.</span>
           </label>
           <label class="mode">
             <input type="radio" name="mode" value="order" id="modeOrder">
@@ -342,8 +342,7 @@ body.lite .fog,body.lite .beacon{display:none}
         <div class="meter dead"><span class="label">좀비화</span><strong id="zDead">0</strong></div>
         <div class="meter round"><span class="label">Round</span><strong id="zRound">0</strong></div>
         <div class="ctrls">
-          <button class="btn primary big" id="zNext" type="button">습격 시작</button>
-          <button class="btn" id="zAuto" type="button" aria-pressed="false">자동 진행</button>
+          <button class="btn gold big" id="zNext" type="button" hidden>결과 보기</button>
           <button class="btn" id="zSkip" type="button">남은 결과 한 번에</button>
           <button class="btn" id="zRedo" type="button">다시 뽑기</button>
           <button class="btn ghost" id="zHome" type="button">명단으로</button>
@@ -352,7 +351,7 @@ body.lite .fog,body.lite .beacon{display:none}
       <div id="zSlot"></div>
       <div class="below">
         <div class="panel"><div class="ph"><h2>생존자 현황</h2><span class="label">Status board</span></div><div class="zgrid" id="zgrid"></div></div>
-        <div class="panel"><div class="ph"><h2>생존 일지</h2><span class="label">Log</span></div><ol class="log" id="zlog"></ol><p class="kbd">스페이스바·Enter: 다음 습격</p></div>
+        <div class="panel"><div class="ph"><h2>생존 일지</h2><span class="label">Log</span></div><ol class="log" id="zlog"></ol><p class="kbd">추첨은 끝까지 자동으로 진행됩니다. 화면을 누르면 자막을 넘깁니다.</p></div>
       </div>
     </section>
 
@@ -1107,16 +1106,17 @@ function startZombie() {
   Z = { seq: shuffle(people), n: people.length, idx: 0, round: 0, busy: false, done: false, auto: false, cards: {} };
   const grid = $('#zgrid'); grid.innerHTML = '';
   people.forEach(p => { const el = document.createElement('div'); el.className = 'zcard'; el.innerHTML = `<div class="nm">${esc(p.name)}</div><div class="st">도주 중</div>`; grid.appendChild(el); Z.cards[p.id] = el; });
-  $('#zlog').innerHTML = '<li class="empty-log">좀비 떼가 다가오고 있습니다. "습격 시작"을 누르세요.</li>';
-  lastStage = 'zombie'; show('zombie'); arena.setup(people, 'zombie'); syncZ();
+  $('#zlog').innerHTML = '<li class="empty-log">좀비 떼가 다가오고 있습니다…</li>';
+  lastStage = 'zombie'; show('zombie'); arena.setup(people, 'zombie');
+  Z.auto = true; syncZ();
   setStatus(`격리구역 봉쇄 · 생존자 ${Z.n}명`, null);
+  const tok = RUN; setTimeout(() => { if (tok === RUN) zombieNext(); }, 700);
 }
 function syncZ() {
   const left = Z.n - Z.idx;
   $('#zAlive').textContent = left; $('#zDead').textContent = Z.idx; $('#zRound').textContent = Z.round;
-  const nx = $('#zNext'); nx.textContent = Z.done ? '결과 보기' : Z.idx === 0 ? '습격 시작' : left === 2 ? '최후의 추격' : '다음 습격'; nx.disabled = Z.busy && !Z.done;
-  const au = $('#zAuto'); au.setAttribute('aria-pressed', String(Z.auto)); au.textContent = Z.auto ? '자동 진행 중지' : '자동 진행'; au.disabled = Z.done;
-  $('#zSkip').disabled = Z.busy || Z.done;
+  $('#zNext').hidden = !Z.done;
+  $('#zSkip').disabled = Z.done || !!Z.skipping;
 }
 function zlog(html, cls) { const l = $('#zlog'); const e = l.querySelector('.empty-log'); if (e) e.remove(); const li = document.createElement('li'); if (cls) li.className = cls; li.innerHTML = html; l.prepend(li); }
 function markBitten(p, rank, round) {
@@ -1164,8 +1164,17 @@ async function finishZombie(tok) {
   SFX.fanfare(); celebrate();
 }
 async function zombieSkip() {
-  if (!Z || Z.busy || Z.done) return;
-  SFX.init(); const tok = RUN; Z.busy = true; Z.auto = false; syncZ(); setStatus('남은 결과 공개 중', 'hot'); hideLT();
+  if (!Z || Z.done || Z.skipping) return;
+  // 진행 중인 연출을 끊고 남은 결과를 빠르게 공개
+  SFX.init(); RUN++; const tok = RUN;
+  Z.skipping = true; Z.busy = true; Z.auto = false;
+  hideOverlay(); hideLT(); document.body.classList.remove('alarm');
+  const alive = new Set(Z.seq.slice(Z.idx).map(p => p.id));
+  arena.humans.filter(h => !alive.has(h.id)).forEach(h => arena.quickCatch(h.id));
+  arena.humans.forEach(h => { if (h.state !== 'run') { h.state = 'run'; h.rotT = 0; h.k = 2; } });
+  arena.zombies.forEach(z => { z.lock = false; z.k = 1.5; z.rotT = 0; });
+  arena.target = null; scanCard(Z.cards, null);
+  syncZ(); setStatus('남은 결과 공개 중', 'hot');
   arena.panic = true; arena.surge = 1;
   while (Z.n - Z.idx > 1) {
     Z.round++; const v = Z.seq[Z.idx]; arena.quickCatch(v.id); markBitten(v, Z.n - Z.idx, Z.round); SFX.tick(); Z.idx++; syncZ();
@@ -1175,7 +1184,6 @@ async function zombieSkip() {
   await finishZombie(tok);
 }
 $('#zNext').addEventListener('click', zombieNext);
-$('#zAuto').addEventListener('click', () => { if (!Z || Z.done) return; Z.auto = !Z.auto; syncZ(); if (Z.auto && !Z.busy) zombieNext(); });
 $('#zSkip').addEventListener('click', zombieSkip);
 $('#zRedo').addEventListener('click', async () => { if (Z && Z.idx > 0 && !Z.done && !(await confirmBox('다시 뽑기', '진행 중인 추첨을 버리고 같은 명단으로 처음부터 다시 뽑을까요?', '다시 뽑기'))) return; startZombie(); toast('새 무작위 순서로 다시 시작합니다'); });
 $('#zHome').addEventListener('click', async () => { if (Z && Z.idx > 0 && !Z.done && !(await confirmBox('명단으로 돌아가기', '진행 중인 추첨이 사라집니다. 명단 화면으로 갈까요?', '돌아가기'))) return; goHome(); });

@@ -107,6 +107,7 @@ main{max-width:1280px;width:100%;margin-inline:auto;flex:1}
 .go-row{display:flex;gap:12px;width:min(900px,100%)}
 .go-row .start{flex:1;width:auto;margin-top:0}
 .btn.sumob{background:#e0a24a;color:#fff;text-shadow:0 1px 0 rgba(74,59,47,.35)}
+.btn.towerb{background:#7d8590;color:#fff;text-shadow:0 1px 0 rgba(74,59,47,.35)}
 .btn.lavab{background:#e8622c;color:#fff;text-shadow:0 1px 0 rgba(74,59,47,.35)}
 .btn.boxb{background:#e8473b;color:#fff;text-shadow:0 1px 0 rgba(74,59,47,.35)}
 .go-row{flex-wrap:wrap;justify-content:center}
@@ -385,7 +386,7 @@ details.mini[open] summary .label{visibility:hidden}
       <div class="go">
         <label class="check"><input type="checkbox" id="lite">저사양 기기용 간소화 연출 (입자 줄임)</label>
         <button class="btn primary big start gostart" id="goMaps" type="button">시작하기</button>
-        <div class="go-row" hidden><button class="btn primary big start" id="startBtn" type="button">숲으로 출발</button><button class="btn big start road" id="raceBtn" type="button">도로로 출발</button><button class="btn big start duelb" id="duelBtn" type="button">결투장으로 출발</button><button class="btn big start sumob" id="sumoBtn" type="button">도효로 출발</button><button class="btn big start boxb" id="boxBtn" type="button">링으로 출발</button><button class="btn big start lavab" id="lavaBtn" type="button">용암지대로 출발</button></div>
+        <div class="go-row" hidden><button class="btn primary big start" id="startBtn" type="button">숲으로 출발</button><button class="btn big start road" id="raceBtn" type="button">도로로 출발</button><button class="btn big start duelb" id="duelBtn" type="button">결투장으로 출발</button><button class="btn big start sumob" id="sumoBtn" type="button">도효로 출발</button><button class="btn big start boxb" id="boxBtn" type="button">링으로 출발</button><button class="btn big start lavab" id="lavaBtn" type="button">용암지대로 출발</button><button class="btn big start towerb" id="towerBtn" type="button">타워로 출발</button></div>
       </div>
     </section>
 
@@ -398,6 +399,7 @@ details.mini[open] summary .label{visibility:hidden}
         <button class="mapbtn" type="button" data-go="sumoBtn" data-shot="sumo"><img alt=""><span>도효</span></button>
         <button class="mapbtn" type="button" data-go="boxBtn" data-shot="boxing"><img alt=""><span>링</span></button>
         <button class="mapbtn" type="button" data-go="lavaBtn" data-shot="lava"><img alt=""><span>용암지대</span></button>
+        <button class="mapbtn" type="button" data-go="towerBtn" data-shot="tower"><img alt=""><span>타워</span></button>
       </div>
     </section>
 
@@ -572,6 +574,8 @@ const SFX = {
   },
   squish() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sine', 520, 140, t, .14, .35); this.osc('triangle', 260, 980, t + .12, .18, .14); this.noise(t, .06, .1, 'lowpass', 900); },
   boom() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .7, .7, 'lowpass', 900); this.osc('sine', 130, 38, t, .55, .5); this.osc('square', 300, 60, t, .25, .06); },
+  slap() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .12, .55, 'highpass', 1800); this.osc('sine', 220, 70, t, .2, .45); this.noise(t + .02, .3, .2, 'bandpass', 4200, 3); },
+  shatter() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sawtooth', 110, 55, t, .35, .12); this.noise(t, .45, .4, 'bandpass', 2400, 1.5); [1400, 1900, 2600].forEach((q, i) => this.osc('triangle', q, q * .7, t + .05 + i * .06, .12, .08)); },
   crumble() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .9, .4, 'lowpass', 520); this.osc('sine', 72, 34, t, .8, .32); this.noise(t + .15, .25, .12, 'bandpass', 1500, 2); },
   sizzle() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, 1.2, .26, 'highpass', 2600); this.osc('sine', 170, 48, t, .45, .4); this.noise(t, .3, .3, 'lowpass', 700); },
   hop() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sine', 300, 620, t, .12, .1); },
@@ -1854,7 +1858,7 @@ const R3 = {
     } else if (race === 'duel') {
       const band = this.part(this.CYL, this.M('#e8473b'), 0, body); band.scale.set(.57, .07, .555); band.position.set(-.02, 1.22, 0);
       [.1, -.1].forEach(z => { const tl = this.part(this.SPHL, this.M('#e8473b'), 0, body); tl.scale.set(.18, .04, .06); tl.position.set(-.62, 1.15, z); tl.rotation.z = -.5; });
-    } else if (race === 'lava') {
+    } else if (race === 'lava' || race === 'tower') {
     } else if (race) {
       const helm = this.part(this.HALF, this.M(h.kc), .05, body); helm.scale.set(.6, .56, .58); helm.position.set(-.02, 1.1, 0); helm.rotation.z = .12;
       const line = this.part(this.HALF, this.M('#ffffff'), 0, body); line.scale.set(.18, .575, .605); line.position.set(-.02, 1.1, 0); line.rotation.z = .12;
@@ -2787,6 +2791,10 @@ function startRace() {
    먼저 탈락한 사람이 뒷 순서, 마지막까지 남은 사람이 1등 */
 let DU = null;
 const LAVA = { SP: 2.15, TR: 1.0, LV: -7 };
+const TOWER = { R: 6.7, RC: 5, W: 3.4, PITCH: .22, STEP: .8, LOOP: 2 * Math.PI * 6.7 };
+// 계단 길이 s, 가운데선에서 옆으로 lane 만큼 떨어진 곳의 위치와 올라가는 방향
+function towerPos(s, lane = 0) { const a = s / TOWER.R, r = TOWER.R + lane; return { x: Math.cos(a) * r, y: s * TOWER.PITCH, z: Math.sin(a) * r, tx: -Math.sin(a), tz: Math.cos(a), a }; }
+const towerLen = n => Math.max(70, 2.4 * (6 + (n - 1) * 5.2) + 20);
 function lavaGrid(k) { const out = []; for (let q = -k; q <= k; q++) for (let r = Math.max(-k, -q - k); r <= Math.min(k, -q + k); r++) out.push({ x: LAVA.SP * (q + r / 2), z: LAVA.SP * r * Math.sqrt(3) / 2, ring: Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) }); return out; }
 const lavaK = RA => Math.max(2, Math.round(RA / LAVA.SP - .6));
 const lavaKFor = n => { let k = 2; while (k < 6 && 1 + 3 * k * (k + 1) < n * 1.8 + 4) k++; return k; };
@@ -2794,12 +2802,13 @@ const DSTYLE = {
   sword:  { atk: .42, hitAt: .45, reach: 2.3, dmg: [9, 17], knock: 6,   sq: false, hp: true,  ult: '#8fd3ff', name: '결투장' },
   boxing: { atk: .32, hitAt: .45, reach: 1.9, dmg: [7, 13], knock: 5,   sq: true,  hp: true,  ult: '#ff8a5c', name: '링' },
   sumo:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 7.5, sq: false, hp: false, ult: '#ffd24d', name: '도효' },
-  lava:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ff8a3a', name: '용암지대' }
+  lava:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ff8a3a', name: '용암지대' },
+  tower:  { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#9fb6ff', name: '타워' }
 };
 Object.assign(arena, {
   setupDuel(people, style = 'sword') {
     const n = people.length, ST = DSTYLE[style];
-    const RA = style === 'lava' ? (lavaKFor(n) + .6) * LAVA.SP : style === 'sumo' ? Math.max(4.2, Math.min(8, 3.2 + n * .27)) : Math.max(5, Math.min(9.5, 3.6 + n * .32));
+    const RA = style === 'tower' ? towerLen(n) : style === 'lava' ? (lavaKFor(n) + .6) * LAVA.SP : style === 'sumo' ? Math.max(4.2, Math.min(8, 3.2 + n * .27)) : Math.max(5, Math.min(9.5, 3.6 + n * .32));
     this.zombies = []; this.truck = { x: 0, tx: 0, on: false, door: 0, doorT: 0, riders: [] };
     this.duel = { style, ST, RA, P: style === 'sumo' ? RA + 1.4 : RA, go: false, t: 0, killAt: 6, idx: 0, pending: null, kills: [], fx: [], ultFx: [], frames: [], recT: 0, final: false, ended: false, winner: null, endT: 0, seq: [] };
     this.humans = people.map((p, i) => {
@@ -2810,6 +2819,134 @@ Object.assign(arena, {
         ult: rnd(0, .25), floorR: rnd(10, 75), bruise: 0 };
     });
     if (style === 'lava') this.lavaPlace();
+    if (style === 'tower') { this.duel.worm = { s: -9, chomp: -9 }; this.humans.forEach(h => { h.ult = rnd(0, .3); h.vf = rnd(0, 6.283); h.spd = Math.random(); h.spdT = rnd(6, 14); }); this.towerPlace(); }
+  },
+  // 타워: 나선 계단을 오르고, 무서운 지렁이가 뒤따라옴. 게이지가 차면 검은 손바닥으로 때림
+  towerSync(h) { const p = towerPos(h.s, h.lane); h.x = p.x; h.y = p.y + (h.jy || 0); h.z = p.z; h.ang = Math.atan2(p.tz, p.tx); },
+  towerPlace() {
+    const slots = shuffle(this.humans.map((h, i) => ({ s: 3 + Math.floor(i / 3) * 1.15 + rnd(-.15, .15), lane: ((i % 3) - 1) * 1.05 + rnd(-.1, .1) })));
+    this.humans.forEach((h, i) => { h.s = slots[i].s; h.lane = h.laneT = slots[i].lane; this.towerSync(h); });
+  },
+  towerOut(v, k, how) {
+    const D = this.duel; v.doomed = false; v.alive = false; D.idx++; v.hp = 0;
+    if (k) { k.kills++; } D.kills.push({ t: D.t, killer: k ? k.id : -1, victim: v.id, ring: how === 'slap' });
+    const left = this.humans.filter(h => h.alive);
+    if (!this.slow && this.follow == null) { this.slow = { id: v.id, other: k ? k.id : v.id, ring: true, until: performance.now() + (left.length === (D.keep || 1) ? 2400 : 1500) }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
+    if (this.onOut) this.onOut(v);
+  },
+  towerSlapStart(a, v, miss) { const D = this.duel; D.slapEv = { a, v, t0: D.t, miss, hit: false, dur: a.high ? 1.05 : .55 }; a.st = 'slap'; if (a.high) a.leap = { x0: a.x, y0: a.y, z0: a.z }; this.kSfx(a, 'ultCharge'); },
+  towerStep(dt, alive) {
+    const D = this.duel, L = D.RA, keep = D.keep || 1, W = D.worm;
+    const lead = alive.length ? Math.max(...alive.map(h => h.s)) : 0, remain = Math.max(1, (alive.length - keep) * 8 + 3);
+    const pace = Math.max(.6, Math.min(3, (L - 6 - lead) / remain));
+    const prey = D.pending && D.method === 'worm' && D.pending.alive ? D.pending : null;
+    if (D.ended && !D.winSet) { D.winSet = true; alive.slice().sort((p, q) => q.s - p.s).forEach((h, i) => { h.winS = Math.max(h.s, L - 1 - i * 1.2); }); }
+    for (const h of this.humans) {
+      if (h.shat) continue;
+      if (h.fly) {
+        h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt; h.vy -= 18 * dt; h.flyRot += h.spin * dt;
+        if (h.y <= 0) { h.y = 0; h.vx = h.vz = h.vy = 0; h.spin = 0; h.landed = true; }
+        if (h.landed || h.y < h.fall0.y - 26) h.alpha = Math.max(0, h.alpha - dt * 1.6);
+        if (h.alpha <= 0 && D.pending === h) { D.pending = null; D.watch = null; const n = this.humans.filter(p => p.alive).length; D.killAt = D.t + (n <= 4 ? 2.6 : n > 12 ? 1.2 : 1.8); }
+        continue;
+      }
+      if (!h.alive) continue;
+      h.spdT -= dt; if (h.spdT <= 0) { h.spdT = rnd(6, 14); h.spd = Math.random(); }
+      let sp = pace * (.5 + h.spd);
+      if (h.s < lead - 45) sp *= 1.4;
+      if (h.ambushed) sp = Math.max(sp, 2.8);
+      if (h.st === 'win') sp = h.s < h.winS ? 2.6 : 0;
+      else if (h.doomed && D.method === 'worm') {
+        const others = alive.filter(o => o !== h), mn = others.length ? Math.min(...others.map(o => o.s)) : h.s;
+        if (h.s < mn - 1.2) h.trip = true; sp = h.trip ? .35 : D.t - D.pendT > 4 ? -3.2 : pace * .4; if (sp < 0) h.slide = true;
+      } else if (h.st === 'slapGo') {
+        // 높은 곳으로 먼저 뛰어 올라가 바깥쪽 끝에 서서 기다림
+        sp = h.s < h.waitS ? Math.max(pace * 2.5, 6.5) : 0; h.laneT = 1.2;
+        if (h.s >= h.waitS - .1) { h.st = 'ambush'; h.fill = true; }
+      } else if (h.st === 'ambush') {
+        sp = 0; h.laneT = 1.2; const v = h.prey;
+        if (!v || !v.alive || v.fly) { h.st = 'idle'; h.prey = null; D.amb = null; }
+        else if (h.ult >= 1 && (h.high ? v.s >= h.s - TOWER.LOOP - .4 : Math.abs(h.s - v.s) < 1.6)) this.towerSlapStart(h, v, h.missPlan);
+        else if (D.t - h.ambT > 11) { h.st = 'idle'; h.prey = null; h.high = false; v.ambushed = false; D.amb = null; if (v === D.pending) { D.method = 'worm'; D.pendT = D.t - 4; } }
+      } else if (h.st === 'slap') sp = 0;
+      h.lie += ((h.trip || h.slide ? 1.45 : 0) - h.lie) * Math.min(1, dt * 8); if (h.trip) h.slide = false;
+      h.s = Math.min(L - .8, h.s + sp * dt);
+      if (Math.random() < dt * .25 && h.st === 'idle') h.laneT = rnd(-1.2, 1.2);
+      h.lane += (h.laneT - h.lane) * Math.min(1, dt * 2.5);
+      if (h.fill) { h.ult = Math.min(1, h.ult + dt * 1.2); if (h.ult >= 1) h.fill = false; }
+      else if (h.st !== 'win') h.ult = Math.min(1, h.ult + dt * .045);
+      if (h.jumpT != null) { const q = (D.t - h.jumpT) / .55; h.jy = q >= 1 ? 0 : Math.sin(q * Math.PI) * 1.3; if (q >= 1) h.jumpT = null; } else h.jy = 0;
+      const p = towerPos(h.s, h.lane); h.vx = p.tx * sp; h.vz = p.tz * sp;
+    }
+    const walk = alive.filter(h => !h.fly);
+    for (let i = 0; i < walk.length; i++) for (let j = i + 1; j < walk.length; j++) {
+      const p = walk[i], q = walk[j], ds = q.s - p.s, dl = q.lane - p.lane;
+      if (Math.abs(ds) < .95 && Math.abs(dl) < .9) { const push = (.9 - Math.abs(dl)) * .5 * (dl >= 0 ? 1 : -1); p.lane -= push; q.lane += push; p.laneT = p.lane; q.laneT = q.lane; if (Math.abs(dl) < .3) { const ps = (.95 - Math.abs(ds)) * .3 * (ds >= 0 ? 1 : -1); p.s -= ps; q.s += ps; } }
+    }
+    for (const h of walk) {
+      h.lane = Math.max(-1.3, Math.min(1.3, h.lane)); if (!h.leap) this.towerSync(h);
+      // 기다리는 친구는 계단 아래쪽(올라오는 친구)을 내려다봄
+      if ((h.st === 'ambush' || h.st === 'slap') && h.prey) h.ang = Math.atan2(h.prey.z - h.z, h.prey.x - h.x);
+    }
+    // 지렁이: 맨 뒤 친구 바로 뒤까지만 쫓아옴 (잡아먹을 친구가 맨 뒤로 처지면 그때 잡음)
+    const others = alive.filter(h => h !== prey), mn = others.length ? Math.min(...others.map(h => h.s)) : lead;
+    let cap = mn - 2.4; if (prey && prey.s < mn - .4) cap = prey.s - .3;
+    if (D.ended) W.s -= dt * 1.5;
+    else { const v = W.s < cap - 5 ? 6.5 : prey ? 4.5 : pace * 1.1; W.s = Math.max(cap - 30, Math.min(W.s + v * dt, cap)); }
+    if (prey && W.s >= prey.s - .5) {
+      W.chomp = D.t; prey.shat = true; prey.alpha = 0; prey.trip = false; this.kSfx(prey, 'shatter'); this.shake(7);
+      this.wsplat(prey.x, prey.y + 1, prey.z, ['#ffffff', '#e9e0c9', '#d9d2c4'], 26, 4);
+      this.towerOut(prey, null, 'worm'); D.pendClear = D.t + 1.3;
+    }
+    if (D.pendClear && D.t >= D.pendClear) { D.pendClear = 0; D.pending = null; const n = alive.length; D.killAt = D.t + (n <= 4 ? 2.6 : n > 12 ? 1.2 : 1.8); }
+    // 손바닥 따귀 (뛰어내리며 침)
+    const E = D.slapEv;
+    if (E) {
+      const q = (D.t - E.t0) / E.dur, a = E.a, v = E.v;
+      if (a.leap) {
+        // 위층 바깥 끝에서 바깥쪽으로 크게 포물선을 그리며 아래층 친구 옆으로 뛰어내림
+        const k = Math.min(1, q / .58), e2 = k * k * (3 - 2 * k), dst = towerPos(v.s - .8, Math.max(-1.2, Math.min(1.2, v.lane + (v.lane > 0 ? -.7 : .7)))), r0 = Math.hypot(dst.x, dst.z) || 1;
+        a.x = a.leap.x0 + (dst.x - a.leap.x0) * e2 + dst.x / r0 * Math.sin(k * Math.PI) * 2.2; a.z = a.leap.z0 + (dst.z - a.leap.z0) * e2 + dst.z / r0 * Math.sin(k * Math.PI) * 2.2;
+        a.y = a.leap.y0 + (dst.y - a.leap.y0) * e2 + Math.sin(k * Math.PI) * 1.6; a.ang = Math.atan2(v.z - a.z, v.x - a.x);
+        if (k >= 1) { a.s = v.s - .8; a.lane = a.laneT = Math.max(-1.2, Math.min(1.2, v.lane + (v.lane > 0 ? -.7 : .7))); a.leap = null; a.high = false; this.shake(4); this.wsplat(a.x, a.y + .2, a.z, ['#ffffff', '#d9dde2'], 12, 3); }
+      }
+      if (!E.hit && q >= .6) {
+        E.hit = true; a.ult = 0; v.ambushed = false;
+        if (E.miss) { v.jumpT = D.t - .1; this.kSfx(a, 'jab'); this.wsplat(v.x, v.y + 1.4, v.z, ['#ffffff', '#cfe9ff'], 10, 2.5); }
+        else {
+          const r = Math.hypot(v.x, v.z) || 1, ox = v.x / r, oz = v.z / r, p = towerPos(v.s, v.lane);
+          v.fly = true; v.st = 'fly'; v.vx = ox * 8.5 + p.tx * 1.5; v.vz = oz * 8.5 + p.tz * 1.5; v.vy = 7; v.flyRot = 0; v.spin = rnd(6, 9) * (Math.random() < .5 ? -1 : 1);
+          v.fall0 = { x: v.x, y: v.y, z: v.z }; v.trip = false; D.watch = v;
+          this.kSfx(v, 'slap'); this.shake(9); this.wsplat(v.x, v.y + 1.2, v.z, ['#ffffff', '#cfe9ff', '#9fd0ff'], 30, 6);
+          this.towerOut(v, a, 'slap'); setTimeout(() => this.kSfx(v, 'fallScream'), 250);
+        }
+      }
+      if (q >= 1) { D.slapEv = null; D.amb = null; a.st = 'idle'; a.leap = null; a.high = false; a.prey = null; if (a.alive) a.laneT = a.lane; }
+    }
+    if (D.ended || !D.go) return;
+    // 손바닥 친구를 정해 높은 곳에서 기다리게 함
+    const ambush = (v, miss) => {
+      const LP = TOWER.LOOP, high = v.s + LP + 9 < L - 2, want = high ? v.s + LP + 6 : v.s + 12;
+      const cand = alive.filter(o => o !== v && o.st === 'idle' && !o.doomed && o.s > v.s - 15 && o.s < want + 25);
+      if (!cand.length) return false;
+      const a = cand.sort((p, q) => Math.abs(p.s - want) - Math.abs(q.s - want))[0];
+      a.high = high; a.waitS = Math.min(L - 2, Math.max(a.s, high ? v.s + LP + rnd(4, 8) : v.s + rnd(9, 14))); a.st = 'slapGo'; a.prey = v; a.missPlan = miss; a.ambT = D.t; v.ambushed = true; D.amb = a; return true;
+    };
+    // 가끔은 기다렸다 쳐도 상대가 피함 (누가 떨어질지 미리 알 수 없게)
+    if (!D.amb && !D.slapEv && !D.pending && D.killAt - D.t > 1.5 && D.t >= (D.decoyT || 12) && alive.length > keep + 1) {
+      D.decoyT = D.t + rnd(14, 22);
+      const v = shuffle(alive.filter(o => !o.doomed && o.st === 'idle'))[0]; if (v) ambush(v, true);
+    }
+    // 감독: 정해진 순서대로 다음 탈락자. 맨 뒤쪽이면 대개 지렁이, 아니면 높은 곳에서 기다린 손바닥
+    if (!D.pending && alive.length > keep && D.t >= D.killAt && !D.amb && !D.slapEv) {
+      const v = this.humans.find(h => h.id === D.seq[D.idx].id);
+      if (v && v.alive && v.st === 'idle') {
+        const os = alive.filter(o => o !== v), mn2 = os.length ? Math.min(...os.map(o => o.s)) : v.s;
+        v.doomed = true; D.pending = v; D.pendT = D.t;
+        const worm = v.s - mn2 < 8 && Math.random() < .75;
+        D.method = !worm && ambush(v, false) ? 'slap' : 'worm';
+      }
+    }
   },
   // 용암지대: 용암 위 육각 돌기둥에 한 명씩
   lavaPlace() {
@@ -2908,6 +3045,7 @@ Object.assign(arena, {
     if (this.onOut) this.onOut(v);
   },
   shuffleDuel() {
+    if (this.duel.style === 'tower') { this.towerPlace(); this.humans.forEach(h => { h.drop = { t0: this.t, delay: rnd(0, .35) }; }); return; }
     if (this.duel.style === 'lava') { this.lavaPlace(); this.humans.forEach(h => { h.drop = { t0: this.t, delay: rnd(0, .35) }; }); return; }
     const slots = shuffle(this.humans.map(h => ({ x: h.x, z: h.z, ang: h.ang })));
     this.humans.forEach((h, i) => { h.x = slots[i].x; h.z = slots[i].z; h.ang = slots[i].ang; h.drop = { t0: this.t, delay: rnd(0, .35) }; });
@@ -2957,7 +3095,7 @@ Object.assign(arena, {
     if (!D.go) return;
     D.t += dt;
     const alive = this.humans.filter(h => h.alive);
-    if (D.style === 'lava') this.lavaStep(dt, alive); else {
+    if (D.style === 'tower') this.towerStep(dt, alive); else if (D.style === 'lava') this.lavaStep(dt, alive); else {
     // 감독: 정해진 순서대로 다음 탈락자를 정하고, 가까운 상대가 노리게 함
     if (!D.ended && !D.pending && alive.length > (D.keep || 1) && D.t >= D.killAt) {
       const v = this.humans.find(h => h.id === D.seq[D.idx].id);
@@ -3007,7 +3145,7 @@ Object.assign(arena, {
       D.ended = true; D.endT = D.t; const w = alive.slice().sort((p, q) => q.kills - p.kills || q.hits - p.hits)[0]; D.winner = w; D.winners = alive; alive.forEach(a => { a.st = 'win'; a.vx = a.vz = 0; }); this.winId = w.id;
       if (this.slow) this.endSlow();
       SFX.stinger(); setTimeout(() => SFX.fanfare(), 400); celebrate();
-      [0, 300, 650, 1000].forEach(ms => setTimeout(() => this.wsplat(w.x, 2, w.z, ['#f6c445', '#fff1c2', '#ffffff', '#ff7b6b'], 40, 6), ms));
+      [0, 300, 650, 1000].forEach(ms => setTimeout(() => this.wsplat(w.x, w.y + 2, w.z, ['#f6c445', '#fff1c2', '#ffffff', '#ff7b6b'], 40, 6), ms));
       setTimeout(() => this.startReplay(), sp(3600));
     }
     // 다시보기용 기록
@@ -3154,7 +3292,7 @@ Object.assign(arena, {
   // 최고의 플레이: 우승자가 가장 많이 활약한 구간을 다시 보여 줌
   startReplay() {
     const D = this.duel; if (!D || !D.winner || this.mode !== 'duel') return;
-    if (D.style === 'lava') return this.onDuelDone && this.onDuelDone();
+    if (D.style === 'lava' || D.style === 'tower') return this.onDuelDone && this.onDuelDone();
     const w = D.winner, mine = D.kills.filter(e => e.killer === w.id);
     let best = null, bestN = -1;
     for (const e of mine) { const n = mine.filter(o => o.t >= e.t - 4 && o.t <= e.t + 1.2).length; if (n > bestN) { bestN = n; best = e; } }
@@ -3192,10 +3330,10 @@ Object.assign(R3, {
     if (this.duelG) this.scene.remove(this.duelG);
     const T = THREE, g = new T.Group(); this.duelG = g; this.duelKey = key; g.visible = false; this.scene.add(g);
     let colR = RA * .95;
-    this.lavaTiles = null; this.embers = null; this.lavaTex = null;
+    this.lavaTiles = null; this.embers = null; this.lavaTex = null; this.worm = null; this.hand = null; this.shards = this.shards || [];
     this.duelStyle = style; this.clouds = null; this.petals = null; this.ropes = null; this.jumbo = null; this.dfans = [];
     const SPA = this.SPHT || (this.SPHT = new T.SphereGeometry(1, 10, 7));
-    const box = style === 'boxing', sumo = style === 'sumo', lava = style === 'lava';
+    const box = style === 'boxing', sumo = style === 'sumo', lava = style === 'lava', tower = style === 'tower';
     if (box) {
       // 어두운 실내 경기장 한가운데 링 (밧줄에 막혀 튕겨 나옴)
       const H = 1.4;
@@ -3252,6 +3390,67 @@ Object.assign(R3, {
       const outer = new T.Mesh(new T.TorusGeometry(P - .22, .13, 8, 90), this.M('#cdb46c')); outer.rotation.x = Math.PI / 2; outer.position.y = .07; g.add(outer);
       [-1, 1].forEach(s => { const l = new T.Mesh(new T.BoxGeometry(.12, .02, .8), this.M('#ffffff')); l.position.set(s * .7, .02, 0); g.add(l); });
       colR = P * 1.02;
+    } else if (tower) {
+      const L = RA, H = L * TOWER.PITCH, RC = TOWER.RC, W = TOWER.W, RO = RC + W;
+      // 회색 벽돌 타워
+      const bc = document.createElement('canvas'); bc.width = bc.height = 256; const b = bc.getContext('2d'); b.fillStyle = '#7f858c'; b.fillRect(0, 0, 256, 256);
+      for (let row = 0; row < 8; row++) for (let col = -1; col < 5; col++) { const x = col * 64 + (row % 2) * 32, v = rnd(-12, 12) | 0; b.fillStyle = `rgb(${158 + v},${163 + v},${169 + v})`; b.fillRect(x + 3, row * 32 + 3, 58, 26); }
+      const btx = new T.CanvasTexture(bc); btx.wrapS = btx.wrapT = T.RepeatWrapping; btx.repeat.set(7, (H + 8) / 4.5);
+      const core = new T.Mesh(new T.CylinderGeometry(RC, RC, H + 8, 40), new T.MeshToonMaterial({ color: '#ffffff', map: btx, gradientMap: this.grad })); core.position.y = (H + 8) / 2 - 2; g.add(core);
+      // 나선 계단 (돌 발판)
+      const n = Math.ceil((L + 2) / TOWER.STEP), sg = new T.BoxGeometry(W, .5, .98), sm = this.M('#a7abb0');
+      const steps = new T.InstancedMesh(sg, sm, n), outl = S.lite ? null : new T.InstancedMesh(sg, this.OUT, n), mx = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0);
+      for (let i = 0; i < n; i++) { const s = i * TOWER.STEP, a = s / TOWER.R, y = s * TOWER.PITCH; q.setFromAxisAngle(up, -a); const pos = new T.Vector3(Math.cos(a) * (RC + W / 2), y - .25, Math.sin(a) * (RC + W / 2));
+        mx.compose(pos, q, new T.Vector3(1, 1, 1)); steps.setMatrixAt(i, mx); if (outl) { mx.compose(pos, q, new T.Vector3(1.03, 1.12, 1.06)); outl.setMatrixAt(i, mx); } }
+      g.add(steps); if (outl) g.add(outl);
+      // 꼭대기 평평한 마당과 깃발
+      const top = this.part(new T.CylinderGeometry(RO, RO * .97, .7, 40), this.M('#a7abb0'), .02, g); top.position.y = H - .35;
+      for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2, m = this.part(new T.BoxGeometry(.7, .7, .9), this.M('#8f949a'), .04, g); m.position.set(Math.cos(a) * (RO - .3), H + .35, Math.sin(a) * (RO - .3)); m.rotation.y = -a; }
+      const pole = this.part(this.CYL, this.M('#6b5040'), .05, g); pole.scale.set(.12, 5, .12); pole.position.set(0, H + 2.5, 0);
+      const flag = this.part(new T.BoxGeometry(2.2, 1.3, .08), this.M('#f6c445'), .05, g); flag.position.set(1.15, H + 4.3, 0);
+      // 바닥 풀밭, 지렁이 구멍, 나무와 언덕
+      const ground = new T.Mesh(new T.CircleGeometry(400, 48), this.M('#a6d49a')); ground.rotation.x = -Math.PI / 2; ground.position.y = -.02; g.add(ground);
+      const hp = towerPos(-2.5), hole = new T.Mesh(new T.CircleGeometry(1.5, 24), new T.MeshBasicMaterial({ color: '#3b2f2a' })); hole.rotation.x = -Math.PI / 2; hole.position.set(hp.x, .01, hp.z); g.add(hole);
+      const dirt = new T.Mesh(new T.RingGeometry(1.5, 2.1, 24), this.M('#8a6a4f')); dirt.rotation.x = -Math.PI / 2; dirt.position.set(hp.x, .015, hp.z); g.add(dirt);
+      for (let i = 0; i < 26; i++) { const a = rnd(0, 6.283), rr = rnd(RO + 6, 60), tr = this.part(this.CYL, this.M('#7a5a46'), .05, g); tr.scale.set(.3, 2, .3); tr.position.set(Math.cos(a) * rr, 1, Math.sin(a) * rr);
+        const lf = this.part(this.SPHL, this.M(i % 2 ? '#7fb069' : '#93c47d'), .04, g); lf.scale.setScalar(rnd(1.6, 2.4)); lf.position.set(Math.cos(a) * rr, 3, Math.sin(a) * rr); }
+      for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + rnd(-.2, .2), hl = new T.Mesh(this.SPHL, this.M(i % 2 ? '#94c788' : '#a9d39b')); hl.scale.set(rnd(25, 40), rnd(8, 16), rnd(25, 40)); hl.position.set(Math.cos(a) * rnd(110, 150), -2, Math.sin(a) * rnd(110, 150)); g.add(hl); }
+      // 높이 떠 있는 구름
+      const cm = new T.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: .9 }), cg = new T.Group(); g.add(cg); this.clouds = cg;
+      for (let i = 0; i < 22; i++) { const c = new T.Group(), a = rnd(0, 6.283), rr = rnd(RO + 10, 70);
+        for (let k = 0; k < 4; k++) { const s = new T.Mesh(this.SPHL, cm); s.scale.set(rnd(2.5, 5), rnd(1.4, 2.4), rnd(2.5, 4.5)); s.position.set(k * 3 - 4.5 + rnd(-1, 1), rnd(-.4, .6), rnd(-1.5, 1.5)); c.add(s); }
+        c.position.set(Math.cos(a) * rr, rnd(12, H + 20), Math.sin(a) * rr); c.rotation.y = rnd(0, 3); cg.add(c); }
+      // 무서운 지렁이 (넓적한 머리, 얼굴 대부분을 차지하는 시커먼 입, 두툼한 입술, 작은 눈동자)
+      const wm = this.M('#e8d3c5'), wm2 = this.M('#dcc3b3'), wg = new T.Group(); g.add(wg);
+      const segs = []; for (let i = 0; i < 26; i++) { const sgm = this.part(this.SPH, i % 2 ? wm : wm2, .035, wg); const r = .66 - i * .008; sgm.scale.set(r, r * .92, r); segs.push(sgm); }
+      const head = new T.Group(); head.rotation.order = 'YXZ'; wg.add(head);
+      // 창백한 얼굴, 툭 튀어나온 큰 눈, 귀까지 찢어진 가느다란 웃음, 살짝 벌린 입
+      const skin = this.M('#e4d6cb');
+      const skull = this.part(this.SPH, skin, .03, head); skull.scale.set(.95, 1.12, 1.3);
+      const jaw = this.part(this.SPH, this.M('#ddcdc1'), 0, head); jaw.scale.set(.82, .66, 1.2); jaw.position.set(.06, -.38, 0);
+      const surf = (y, z, o = 0) => { const k = 1 - (y / 1.12) ** 2 - (z / 1.3) ** 2; return .95 * Math.sqrt(Math.max(.02, k)) + o; };
+      [1, -1].forEach(s => {
+        const sh = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#9c7f78' })); sh.scale.set(.12, .4, .42); sh.position.set(surf(.4, .52 * s) - .04, .4, .52 * s); head.add(sh);
+        const rim = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#6e2f2b' })); rim.scale.setScalar(.33 + (s > 0 ? .02 : 0)); rim.position.set(surf(.42, .52 * s) - .14, .42, .52 * s); head.add(rim);
+        const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#efe9e2' })); e.scale.setScalar(.32 + (s > 0 ? .02 : 0)); e.position.set(surf(.42, .52 * s) - .1, .42, .52 * s); head.add(e);
+        const pu = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#080606' })); pu.scale.set(.06, .19, .19); pu.position.set(surf(.42, .52 * s) + .2, .42, .52 * s); head.add(pu);
+        const no = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#4a3330' })); no.scale.set(.03, .028, .022); no.position.set(surf(.08, .06) + .01, .08, .06 * s); head.add(no);
+      });
+      // 귀까지 이어지는 가느다란 웃음선 (양끝이 살짝 올라감)
+      const pts = []; for (let i = 0; i <= 24; i++) { const z = (i / 24 - .5) * 2.3, y = -.3 + .16 * Math.pow(Math.abs(z) / 1.15, 3) - .04 * (1 - Math.abs(z) / 1.15); pts.push(new T.Vector3(surf(y, z, .01), y, z)); }
+      const smile = new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts), 48, .028, 6, false), new T.MeshBasicMaterial({ color: '#2a1414' })); head.add(smile);
+      // 살짝 벌린 입 (덮칠 때 크게 벌어짐)
+      const mouth = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#1e0e0e' })); mouth.position.set(surf(-.34, 0) - .07, -.34, 0); head.add(mouth);
+      this.worm = { g: wg, segs, head, mouth };
+      // 검은 손바닥 (번개 무늬)
+      const hd = new T.Group(), hm = this.M('#1c1c22'); g.add(hd); hd.visible = false;
+      const palm = this.part(this.SPH, hm, .05, hd); palm.scale.set(.13, .5, .45);
+      [-.3, -.1, .1, .3].forEach((z, i) => { const fg = this.part(this.CYL, hm, .06, hd); fg.scale.set(.09, .42 - Math.abs(z) * .25, .09); fg.position.set(0, .7 - Math.abs(z) * .15, z * 1.05); });
+      const th = this.part(this.CYL, hm, .06, hd); th.scale.set(.09, .3, .09); th.position.set(0, .05, .55); th.rotation.x = -1;
+      const bolt = new T.MeshBasicMaterial({ color: '#ffffff' });
+      [[.1, .12, -.05, .5], [-.05, .02, .08, -.6], [-.18, .12, -.06, .5]].forEach(([y, z, dz, r]) => { const bl = new T.Mesh(new T.BoxGeometry(.03, .2, .04), bolt); bl.position.set(.14, y, z + dz); bl.rotation.x = r; hd.add(bl); });
+      this.hand = hd;
+      this.placeWorm(12, 0, -9);
     } else if (!lava) {
       // 원형 결투장 (돌바닥)
       const top = new T.Mesh(new T.CylinderGeometry(RA, RA * .97, 1.2, 72), this.M('#ddd2bf')); top.position.y = -.6; g.add(top);
@@ -3303,7 +3502,7 @@ Object.assign(R3, {
       const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.BufferAttribute(ea, 3));
       this.embers = new T.Points(eg, new T.PointsMaterial({ color: '#ffb347', size: .2, transparent: true, opacity: .9, depthWrite: false, blending: T.AdditiveBlending })); g.add(this.embers);
     }
-    if (!box && !lava) {
+    if (!box && !lava && !tower) {
       // 일본풍 소품
       const sakura = (p, x, y, z, s) => { const tr = this.part(this.CYL, this.M('#7a5a46'), .04, p); tr.scale.set(.18 * s, 1.6 * s, .18 * s); tr.position.set(x, y + .8 * s, z);
         [['#ffb7c9', 0, 2, 0, 1.3], ['#ffc8d6', .8, 1.8, .4, 1], ['#f7a6bd', -.7, 1.9, -.3, 1.05], ['#ffd6e1', .1, 2.6, -.2, .9]].forEach(([c, dx, dy, dz, r]) => { const b = this.part(this.SPHL, this.M(c), .05, p); b.scale.setScalar(r * s); b.position.set(x + dx * s, y + dy * s, z + dz * s); }); };
@@ -3365,6 +3564,16 @@ Object.assign(R3, {
     }
     if (!this.beam) { const beam = new T.Mesh(new T.CylinderGeometry(.55, .9, 30, 24, 1, true), new T.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: .2, side: T.DoubleSide, depthWrite: false })); beam.visible = false; this.scene.add(beam); this.beam = beam; }
   },
+  placeWorm(s, t, chomp) {
+    const W = this.worm; if (!W) return;
+    // 목을 높이 쳐들고 계단을 따라 꿈틀꿈틀
+    W.segs.forEach((m, i) => { const ss = s - .72 * (i + 1), p = towerPos(ss, Math.sin(ss * .8 - t * 3) * .5); m.position.set(p.x, Math.max(-3, p.y) + Math.max(.62, 2.7 - i * .3) + Math.sin(t * 4 - i * .6) * .06, p.z); });
+    const lunge = Math.max(0, 1 - (t - chomp) / .6), sw = Math.sin(t * 1.7) * .3, p = towerPos(s + lunge * .9, sw);
+    W.head.position.set(p.x, p.y + 3.1 + Math.sin(t * 2.3) * .15 - lunge * .9, p.z);
+    W.head.rotation.set(0, -Math.atan2(p.tz, p.tx) + Math.sin(t * 1.3) * .2, -.22 - lunge * .3 + Math.sin(t * 2.1) * .06);
+    W.head.scale.setScalar(1.5 + lunge * .25);
+    W.mouth.visible = true; W.mouth.scale.set(.12, .1 + .025 * Math.sin(t * 2.2) + lunge * .4, .46 + lunge * .55);
+  },
   makeDueler(h, style) {
     const T = THREE, m = this.makeRunner(h, style === 'sword' ? 'duel' : style);
     if (style === 'sword') {
@@ -3397,6 +3606,27 @@ Object.assign(R3, {
     this.setMode('duel'); this.duelG.visible = true;
     if (this.clouds) this.clouds.rotation.y += dt * .01;
     // 벚꽃잎
+    if (this.worm && D.worm) { this.placeWorm(D.worm.s, t, D.worm.chomp); this.worm.g.visible = D.worm.s > -8.5; }
+    if (this.hand) {
+      const E = D.slapEv; this.hand.visible = !!E && !A.replay;
+      if (E) {
+        const q0 = (D.t - E.t0) / E.dur, q = E.dur > .6 ? Math.max(0, (q0 - .3) / .7) * .85 + Math.min(q0, .3) / .3 * .15 : q0, a = E.a, v = E.v, base = Math.atan2(v.z - a.z, v.x - a.x), e = q < .4 ? 0 : Math.min(1, (q - .4) / .2), off = -1.9 + e * 2.6, ph = base + off;
+        const r = new T.Vector3(Math.cos(ph), .25, Math.sin(ph)).normalize(), tg = new T.Vector3(-Math.sin(ph), 0, Math.cos(ph)), zz = new T.Vector3().crossVectors(tg, r);
+        this.hand.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(tg, r, zz));
+        this.hand.position.set(a.x + Math.cos(ph) * 1.05, a.y + 1.05 + (q < .4 ? q * .6 : .24), a.z + Math.sin(ph) * 1.05);
+        this.hand.scale.setScalar(1.35 * Math.min(1, q / .15) * (q > .85 ? Math.max(0, (1 - q) / .15) : 1));
+        if (q > .15 && q < .7 && Math.random() < .5) A.wsplat(this.hand.position.x, this.hand.position.y + .3, this.hand.position.z, ['#ffffff', '#cfe9ff'], 2, 1.5);
+      }
+    }
+    for (const h of A.humans) {
+      if (!h.shat) continue; const m = this.duelers.get(h.id); if (!m || m.shatH === h || A.replay) continue; m.shatH = h;
+      const cols = [h.fur, shade(h.fur, .85), h.kc, '#ffffff'], G = this.SHARDG || (this.SHARDG = new T.DodecahedronGeometry(.16, 0));
+      for (let i = 0; i < 16; i++) { const sm2 = new T.Mesh(G, this.M(cols[i % 4])); sm2.position.set(h.x + rnd(-.3, .3), h.y + rnd(.3, 1.5), h.z + rnd(-.3, .3)); sm2.scale.setScalar(rnd(.7, 1.6)); this.scene.add(sm2);
+        const a = rnd(0, 6.283), sp2 = rnd(2, 5.5); this.shards.push({ m: sm2, vx: Math.cos(a) * sp2, vy: rnd(3, 7), vz: Math.sin(a) * sp2, life: rnd(1.6, 2.4), fy: h.y - 30 }); }
+    }
+    this.shards = this.shards.filter(p => { p.life -= dt; p.vy -= 15 * dt; p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt; p.m.rotation.x += dt * 6; p.m.rotation.y += dt * 4;
+      if (p.m.position.y < 0) { p.m.position.y = 0; p.vy = 0; p.vx *= .9; p.vz *= .9; }
+      if (p.life < .4) p.m.scale.multiplyScalar(Math.max(.01, 1 - dt * 5)); if (p.life <= 0) { this.scene.remove(p.m); return false; } return true; });
     // 용암지대: 용암 흐름, 불티, 발판 흔들림·달아오름
     if (this.lavaTex) this.lavaTex.offset.set(Math.sin(t * .07) * .4, t * .015);
     if (this.embers) { const a = this.embers.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * (1.2 + (i % 5) * .3), x = a.getX(i) + Math.sin(t + i) * .3 * dt; if (y > 14) { y = LAVA.LV; x = rnd(-28, 28); a.setZ(i, rnd(-28, 28)); } a.setX(i, x); a.setY(i, y); } a.needsUpdate = true; }
@@ -3423,6 +3653,7 @@ Object.assign(R3, {
       m.g.position.set(h.x, h.y + dropLift(h, t) + (style === 'boxing' && uq > .35 && uq < .7 ? Math.sin((uq - .35) / .35 * Math.PI) * .6 : 0), h.z); m.g.rotation.order = 'YXZ';
       m.g.rotation.set(h.y < -.3 ? -h.y * .3 * (h.tumble || 1) : 0, -h.ang - spin, h.lie + (style === 'sumo' && (h.sq >= 0 || uq >= 0) ? -.25 : 0));
       m.g.scale.setScalar(h.y < 0 ? Math.max(.25, 1 + h.y / 34) : 1);
+      if (style === 'tower' && h.fly) m.g.rotation.x = h.flyRot;
       const moving = Math.hypot(h.vx, h.vz) > .6 && (h.st === 'idle' || h.st === 'rope'), p = h.ph * 2.2;
       m.body.position.y = win || intro ? Math.abs(Math.sin(t * 7)) * .3 : moving ? Math.abs(Math.sin(p)) * .1 : 0;
       m.fL.position.set(moving ? .2 * Math.sin(p + Math.PI) : .05, .09 + (win && style === 'sumo' ? Math.max(0, Math.sin(t * 4)) * .5 : 0), .15); m.fR.position.set(moving ? .2 * Math.sin(p) : -.05, .09, -.15);
@@ -3437,6 +3668,11 @@ Object.assign(R3, {
         if (h.st === 'block') { ar = 1.9; al = 1.9; }
         if (h.st === 'rope') { if (h.rope && h.rope.ph) { ar = 2.4; al = 1.0; } else { ar = .5; al = .5; } }
         if (uq >= 0) { ar = uq < .35 ? .4 : .4 + Math.min(1, (uq - .35) / .2) * 2.6; al = 1.2; }
+      } else if (style === 'tower') {
+        const mv = Math.hypot(h.vx, h.vz) > .5 && !h.trip;
+        ar = mv ? 1.0 + Math.sin(p) * .55 : 1.05; al = mv ? .9 - Math.sin(p) * .55 : .9;
+        if (h.st === 'slap') { ar = 2.7; } if (h.fly || h.jy > .2) { ar = 2.7 + Math.sin(t * 20) * .3; al = 2.7 + Math.cos(t * 20) * .3; }
+        if (h.trip) { ar = 2.6 + Math.sin(t * 9) * .4; al = 2.6 - Math.sin(t * 9) * .4; }
       } else if (style === 'lava') {
         if (h.panic && h.alive) { ar = 2.5 + Math.sin(t * 15 + h.id) * .45; al = 2.5 + Math.cos(t * 15 + h.id) * .45; }
         else if (h.hop || h.sink) { ar = al = 2.2; }
@@ -3488,7 +3724,7 @@ Object.assign(R3, {
       if (q.g.position.y <= .08) { q.g.position.y = .08; q.vy = 0; q.g.rotation.set(Math.PI / 2, 0, q.g.rotation.z); }
     }
     // 우승 빛기둥
-    this.beam.visible = showWin; if (showWin) { this.beam.position.set(W.x, 12, W.z); this.beam.material.opacity = .14 + .05 * Math.sin(t * 5); this.beam.rotation.y += dt; }
+    this.beam.visible = showWin; if (showWin) { this.beam.position.set(W.x, W.y + 12, W.z); this.beam.material.opacity = .14 + .05 * Math.sin(t * 5); this.beam.rotation.y += dt; }
     // 궁극기 효과: 빛 고리가 퍼짐
     for (const u of D.ultFx.splice(0)) {
       const ring = new T.Mesh(new T.TorusGeometry(1, .12, 8, 48), new T.MeshBasicMaterial({ color: u.c, transparent: true, opacity: .9, depthWrite: false }));
@@ -3507,7 +3743,8 @@ Object.assign(R3, {
     const byId = id => A.humans.find(h => h.id === id);
     const lf = style === 'lava' && A.follow == null && !D.ended && !A.replay && D.focus ? D.focus.ids.map(byId).filter(h => h && h.alpha > 0) : [];
     const alive = A.humans.filter(h => h.alive);
-    if (this.intro) {
+    if (style === 'tower') k = this.towerCam(A, D, want, look, dt, t, showWin, byId, k);
+    else if (this.intro) {
       const RA = D.RA, a0 = this.intro.a0;
       this.introCam(want, look,
         s => { const a = a0 + 1.5 * s, r = RA * (4.2 - 2.2 * s); return { p: [Math.cos(a) * r, 42 - 28 * s, Math.sin(a) * r], l: [0, -4 + 4 * s, 0] }; },
@@ -3563,16 +3800,42 @@ Object.assign(R3, {
     this.drawLabels(A, A.humans);
     if (t - this.rankT > .25) { this.rankT = t; this.drawRankDuel(A); }
   },
+  towerCam(A, D, want, look, dt, t, showWin, byId, k) {
+    const alive = A.humans.filter(h => h.alive), R = TOWER.R;
+    const out = (s, y, d, up, ly, side = 0) => { const p = towerPos(s, 0), r = Math.hypot(p.x, p.z), ux = p.x / r, uz = p.z / r; want.set(p.x + ux * d + p.tx * side, y + up, p.z + uz * d + p.tz * side); look.set(p.x, y + ly, p.z); };
+    if (this.intro) {
+      const a0 = this.intro.a0, H = D.RA * TOWER.PITCH, cs = alive.reduce((a, h) => a + h.s, 0) / Math.max(1, alive.length), c = towerPos(cs, 0), r = Math.hypot(c.x, c.z);
+      this.introCam(want, look,
+        s => { const a = a0 + 2 * s, rr = R + 26; return { p: [Math.cos(a) * rr, H + 12 - (H + 4) * s, Math.sin(a) * rr], l: [0, H * (1 - s) * .9, 0] }; },
+        s => { const b = Math.atan2(c.z, c.x) - .9 + 1.8 * s, rr = r + 7; return { p: [Math.cos(b) * rr, c.y + 3, Math.sin(b) * rr], l: [c.x, c.y + 1, c.z] }; });
+      return k;
+    }
+    if (A.replay) return k;
+    const f = A.follow != null ? byId(A.follow) : null;
+    if (f && f.alpha > 0 && !f.fly) { out(f.s, f.y, 7, 3.2, 1, -2.5); return 1 - Math.exp(-dt * 3); }
+    if (showWin) { const W = D.winner; out(W.s + Math.sin(t * .4) * 2.5, W.y, 7, 3.4, 1.2); return 1 - Math.exp(-dt * 3); }
+    const v = D.watch;
+    if (v && v.alpha > 0 && v.fall0) { const p0 = v.fall0, r = Math.hypot(p0.x, p0.z) || 1; want.set(p0.x / r * (r + 4) - p0.z / r * 4, p0.y + 4.5, p0.z / r * (r + 4) + p0.x / r * 4); look.set(v.x, v.y + .5, v.z); return 1 - Math.exp(-dt * 3.5); }
+    if (A.slow) { const a = byId(A.slow.id), b = byId(A.slow.other) || a, s = (a.s + b.s) / 2; out(s, (a.y + b.y) / 2, 6.2, 2.6, 1); return 1 - Math.exp(-dt * 4); }
+    const prey = D.pending && D.method === 'worm' && D.pending.alive && D.pending.trip ? D.pending : null;
+    if (prey) { out((prey.s + D.worm.s) / 2, prey.y, 7.5, 3, 1); return 1 - Math.exp(-dt * 3); }
+    const am = D.amb;
+    if (am && am.prey && am.high && (am.st === 'ambush' || am.st === 'slap') && am.s - TOWER.LOOP - am.prey.s < 12) { const v2 = am.prey; out(v2.s + 2, v2.y + 3.5, 12, 2.5, 0, -2); return 1 - Math.exp(-dt * 2.5); }
+    if (am && am.prey && (am.st === 'ambush' || am.st === 'slap') && am.s - am.prey.s < 10) { const s = (am.s + am.prey.s) / 2; out(s, towerPos(s).y, 8.5, 3.2, 1, -1.5); return 1 - Math.exp(-dt * 2.5); }
+    if (!alive.length) return k;
+    if (!D.camH || !D.camH.alive || t > D.camT) { const list = alive.slice().sort((p, q) => q.s - p.s); D.camI = ((D.camI || 0) + 1) % list.length; D.camH = list[D.camI]; D.camT = t + 6; }
+    const h = D.camH; out(h.s - .5, h.y, 9, 4.2, .8, -1.5); return 1 - Math.exp(-dt * 2.2);
+  },
   drawRankDuel(A) {
     const D = A.duel, outIds = D.kills.map(e => e.victim).reverse();
     // 남은 사람은 이름 순서로 (체력·위치로 순위를 짐작하지 못하게)
-    const alive = (A.replay ? A.saved.filter(s => s.alive).map(s => s.h) : A.humans.filter(h => h.alive)).slice().sort((p, q) => p.name.localeCompare(q.name, 'ko'));
+    const alive = (A.replay ? A.saved.filter(s => s.alive).map(s => s.h) : A.humans.filter(h => h.alive)).slice().sort(D.style === 'tower' ? (p, q) => q.s - p.s : (p, q) => p.name.localeCompare(q.name, 'ko'));
     const rows = alive.map(h => ({ id: h.id, name: h.name, out: false }))
       .concat(outIds.map(id => { const h = A.humans.find(x => x.id === id); return { id, name: h ? h.name : '', out: true }; }));
     const key = 'duel|' + rows.map(r => r.id + (r.out ? 'x' : '')).join(',') + '|' + A.follow;
     if (key === this.rankKey) return; this.rankKey = key;
     this.rank.innerHTML = `<div class="ttl">남은 선수 · 이름을 누르면 따라가요</div>` +
-      rows.map((r, i) => `<button type="button" data-id="${r.id}" class="${r.out ? 'out' : ''}${A.follow === r.id ? ' on' : ''}"><span class="n">${r.out ? i + 1 : '·'}</span>${esc(r.name)}${r.out ? ' <span class="flag">탈락</span>' : ''}</button>`).join('') +
+      rows.map((r, i) => `<button type="button" data-id="${r.id}" class="${r.out ? 'out' : ''}${A.follow === r.id ? ' on' : ''}"><span class="n">${r.out || D.style === 'tower' ? i + 1 : '·'}</span>${esc(r.name)}${r.out ? ' <span class="flag">탈락</span>' : ''}</button>`).join('') +
       (A.follow != null ? `<button type="button" data-id="all" class="all">전체 보기</button>` : '');
   }
 });
@@ -3755,6 +4018,10 @@ document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value
 document.querySelectorAll('input[name=speed]').forEach(r => { r.checked = +r.value === +S.speed; r.addEventListener('change', () => { S.speed = +r.value; store.set('zs-speed', S.speed); }); });
 $('#lite').checked = !!S.lite;
 $('#lite').addEventListener('change', e => { S.lite = e.target.checked; store.set('zs-lite', S.lite); document.body.classList.toggle('lite', S.lite); });
+$('#towerBtn').addEventListener('click', () => {
+  if (S.roster.length < 2) { toast('추첨하려면 최소 2명이 필요합니다'); $('#one').focus(); return; }
+  SFX.init(); startDuel('tower');
+});
 $('#lavaBtn').addEventListener('click', () => {
   if (S.roster.length < 2) { toast('추첨하려면 최소 2명이 필요합니다'); $('#one').focus(); return; }
   SFX.init(); startDuel('lava');
@@ -3785,8 +4052,9 @@ function makeMapShots() {
       Rr.curMode = null; Rr.setMode('race'); const p = Rr.tpos(14, 0), q = Rr.tpos(34, 0);
       cam.position.set(p.x - p.tz * 9, 11, p.z + p.tx * 9); cam.lookAt(q.x, 0, q.z);
     } else {
-      Rr.curMode = null; Rr.buildDuel(6.5, kind); Rr.setMode('duel'); Rr.duelG.visible = true;
-      cam.position.set(10.5, 8.5, 10.5); cam.lookAt(0, -.5, 0);
+      Rr.curMode = null; Rr.buildDuel(kind === 'tower' ? 140 : 6.5, kind); Rr.setMode('duel'); Rr.duelG.visible = true;
+      if (kind === 'tower') { const p = towerPos(19, 0), r = Math.hypot(p.x, p.z), q = towerPos(12, 0); cam.position.set(p.x / r * (r + 9) - p.tx * 3, p.y + 4, p.z / r * (r + 9) - p.tz * 3); cam.lookAt(q.x, q.y + 1.2, q.z); }
+      else { cam.position.set(10.5, 8.5, 10.5); cam.lookAt(0, -.5, 0); }
     }
     Rr.renderer.render(Rr.scene, cam);
     return Rr.renderer.domElement.toDataURL('image/jpeg', .82);

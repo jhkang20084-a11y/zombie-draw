@@ -2890,9 +2890,14 @@ Object.assign(arena, {
     }
     // 지렁이: 맨 뒤 친구 바로 뒤까지만 쫓아옴 (잡아먹을 친구가 맨 뒤로 처지면 그때 잡음)
     const others = alive.filter(h => h !== prey), mn = others.length ? Math.min(...others.map(h => h.s)) : lead;
-    let cap = mn - 2.4; if (prey && prey.s < mn - .4) cap = prey.s - .3;
+    let cap = mn - 5.5; if (prey && prey.s < mn - .4) cap = prey.s - .3;
     if (D.ended) W.s -= dt * 1.5;
-    else { const v = W.s < cap - 5 ? 6.5 : prey ? 4.5 : pace * 1.1; W.s = Math.max(cap - 30, Math.min(W.s + v * dt, cap)); }
+    else { const v = prey ? (prey.s - W.s < 6 ? 1.5 : 5) : W.s < cap - 5 ? 6.5 : pace * 1.1; W.s = Math.max(cap - 30, Math.min(W.s + v * dt, cap)); }
+    // 지렁이가 가까이 오면 두근두근 심장 소리 (가까울수록 빨라짐)
+    if (!D.ended && alive.length) {
+      const last = alive.reduce((a, h) => h.s < a.s ? h : a), gap = last.s - W.s;
+      if (gap < 6 && D.t >= (D.heartT || 0)) { this.kSfx(last, 'heart'); D.heartT = D.t + .32 + Math.max(0, gap) * .15; }
+    }
     if (prey && W.s >= prey.s - .5) {
       W.chomp = D.t; prey.shat = true; prey.alpha = 0; prey.trip = false; this.kSfx(prey, 'shatter'); this.shake(7);
       this.wsplat(prey.x, prey.y + 1, prey.z, ['#ffffff', '#e9e0c9', '#d9d2c4'], 26, 4);

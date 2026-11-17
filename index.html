@@ -464,10 +464,25 @@ const SFX = {
         this.ctx = new C(); const comp = this.ctx.createDynamicsCompressor();
         this.out = this.ctx.createGain(); this.out.gain.value = .6; this.out.connect(comp); comp.connect(this.ctx.destination);
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume(); this.loadScream();
     } catch (e) {}
   },
   ok() { return this.on && this.ctx; },
+  // 떨어질 때 비명: 함께 올린 scream.mp4 의 소리를 불러와 앞쪽 무음을 잘라 재생
+  screamBuf: null, screamOff: 0, screamLoading: false,
+  loadScream() {
+    if (this.screamBuf || this.screamLoading || !this.ctx) return; this.screamLoading = true;
+    fetch('scream.mp4').then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => this.ctx.decodeAudioData(b, res, rej))).then(buf => {
+      const d = buf.getChannelData(0); let i = 0; while (i < d.length && Math.abs(d[i]) < .03) i++;
+      this.screamOff = Math.max(0, i / buf.sampleRate - .02); this.screamBuf = buf;
+    }).catch(() => {}).finally(() => { this.screamLoading = false; });
+  },
+  fallScream() {
+    if (!this.ok()) return; this.loadScream();
+    if (!this.screamBuf) return this.scream();
+    const c = this.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = this.screamBuf; s.playbackRate.value = rnd(.94, 1.08);
+    g.gain.value = .9 * (this.mul || 1); s.connect(g); g.connect(this.out); s.start(c.currentTime, this.screamOff, Math.min(4, this.screamBuf.duration - this.screamOff));
+  },
   osc(type, f0, f1, t0, dur, vol) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
@@ -527,7 +542,24 @@ const SFX = {
     g.gain.setValueAtTime(.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(.045, c.currentTime + .6);
     o.connect(fl); o2.connect(fl); fl.connect(g); g.connect(this.out); o.start(); o2.start(); this.humO = [o, o2]; this.humG = g;
   },
-  humStop() { if (!this.humO) return; try { const c = this.ctx; this.humG.gain.setTargetAtTime(.0001, c.currentTime, .12); this.humO.forEach(o => o.stop(c.currentTime + .6)); } catch (e) {} this.humO = null; },
+  humStop() { this.screech(0); if (!this.humO) return; try { const c = this.ctx; this.humG.gain.setTargetAtTime(.0001, c.currentTime, .12); this.humO.forEach(o => o.stop(c.currentTime + .6)); } catch (e) {} this.humO = null; },
+  // 타이어가 바닥에 끌리는 끼이익 소리 (스키드 자국이 남는 동안 이어짐)
+  screech(level) {
+    if (!this.ctx) return;
+    if (!this.scrG) {
+      if (!level || !this.ok()) return;
+      const c = this.ctx; this.noise(c.currentTime, .01, .0001, 'lowpass', 100);
+      const s = c.createBufferSource(); s.buffer = this.nb; s.loop = true;
+      const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+      f1.type = 'bandpass'; f1.frequency.value = 2600; f1.Q.value = 9; f2.type = 'peaking'; f2.frequency.value = 3400; f2.Q.value = 6; f2.gain.value = 10;
+      lfo.frequency.value = 7; lg.gain.value = 260; lfo.connect(lg); lg.connect(f1.frequency);
+      g.gain.value = .0001; s.connect(f1); f1.connect(f2); f2.connect(g); g.connect(this.out); s.start(); lfo.start();
+      this.scrG = g; this.scrF = f1;
+    }
+    const v = this.on ? Math.min(.55, level) : 0, c = this.ctx;
+    this.scrG.gain.setTargetAtTime(Math.max(.0001, v), c.currentTime, v > this.scrV ? .03 : .12); this.scrV = v;
+    if (v > 0) this.scrF.frequency.setTargetAtTime(2300 + Math.min(1, v * 3) * 900, c.currentTime, .1);
+  },
   tap() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('square', 420, 160, t, .09, .07); this.noise(t, .06, .12, 'bandpass', 1200, 2); },
   bonk() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sine', 190, 70, t, .16, .45); this.osc('square', 1100, 520, t + .02, .12, .05); },
   poof() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .35, .35, 'bandpass', 1500, 1.2); this.osc('triangle', 880, 220, t, .32, .16); this.osc('sine', 1760, 440, t + .05, .25, .06); },
@@ -1400,7 +1432,7 @@ const arena = {
     if (tok !== RUN) return done();
     h.state = 'pit'; h.sink = this.t; h.x = h.tx = p.x; h.d = p.d; h.rotT = 0; h.rot = 0; h.fall = 0; h.ramp = 0; h.jump = null; h.knock = false;
     const s = this.sOf(h.d); this.splat(h.x, this.yOf(h.d) - 10 * s, ['#8a6a4a', '#c9b597', '#efe6d2'], 40, 6);
-    SFX.whoosh(); setTimeout(() => SFX.bonk(), sp(450)); this.shake(9);
+    SFX.whoosh(); this.kSfx(h, 'fallScream'); setTimeout(() => SFX.bonk(), sp(450)); this.shake(9);
     done();
     await sleep(sp(1000)); if (tok !== RUN) return;
     h.alpha = 0; h.catching = false;
@@ -2334,7 +2366,7 @@ Object.assign(R3, {
     if (tint) base.lerp(new THREE.Color(tint[0]), tint[1]);
     if (W.night) base.lerp(new THREE.Color('#1f2a44'), .68);
     this.scene.background.copy(base); this.scene.fog.color.copy(base);
-    let near = race ? 60 : duel ? 34 : 38, far = race ? 170 : duel ? 150 : 95;
+    let near = race ? 60 : duel ? 55 : 38, far = race ? 170 : duel ? 210 : 95;
     if (W.kind === 'fog') { near *= .35; far *= .45; } else if (W.kind === 'rain' || W.kind === 'storm' || W.kind === 'snow') { near *= .75; far *= .75; }
     this.scene.fog.near = near; this.scene.fog.far = far;
     const dim = { clear: 1, cloudy: .85, fog: .85, rain: .75, snow: .95, storm: .62 }[W.kind] * (W.night ? .45 : 1);
@@ -2461,7 +2493,7 @@ Object.assign(R3, {
   renderRace(A, dt) {
     const T = THREE, PX = this.PX, t = A.t, R = A.race;
     this.setMode('race');
-    const seen = new Set(), kp = new Map();
+    const seen = new Set(), kp = new Map(); let skidN = 0, skidF = false;
     for (const h of A.humans) {
       seen.add(h.id);
       let m = this.karts.get(h.id); if (!m) { m = this.makeKart(h); this.karts.set(h.id, m); }
@@ -2487,6 +2519,7 @@ Object.assign(R3, {
       // 드리프트하거나 급브레이크(멈출 때·부딪힐 때)를 밟으면 뒷바퀴 자국
       const braking = run && !h.air && ((stopped && t > h.stopUntil - 1.1) || (h.bump && t - h.bump.t0 < .35));
       if ((drifting && Math.abs(h.dA) > .14) || braking) {
+        skidN++; if (A.follow === h.id) skidF = true;
         m.g.updateMatrixWorld(true);
         const wl = m.g.localToWorld(new T.Vector3(-.6, 0, .58)), wr = m.g.localToWorld(new T.Vector3(-.6, 0, -.58));
         if (!h.skL) { h.skL = wl; h.skR = wr; }
@@ -2512,6 +2545,7 @@ Object.assign(R3, {
       m.drv.aL.rotation.z = scared || cheer ? 2.6 + .3 * Math.sin(t * 12) : 1.3; m.drv.aR.rotation.z = scared || cheer ? 2.6 + .3 * Math.sin(t * 12 + 1) : 1.3;
       m.drv.body.position.y = cheer ? Math.abs(Math.sin(t * 8)) * .2 : 0;
     }
+    SFX.screech(R.podium || !R.go ? 0 : A.follow != null ? (skidF ? .45 : Math.min(.06, skidN * .015)) : Math.min(.22, skidN * .05));
     for (const [id, m] of this.karts) if (!seen.has(id)) { this.scene.remove(m.g); if (m.fx) m.fx.ghosts.forEach(gh => this.scene.remove(gh)); this.karts.delete(id); }
     for (const an of this.fans) { const qq = Math.abs(Math.sin(t * an.userData.hop + an.userData.ph)); an.userData.body.position.y = qq * .3; an.rotation.z = Math.sin(t * 6 + an.userData.ph) * .12; }
     // 도로 위 물건
@@ -2661,7 +2695,7 @@ function startRace() {
 let DU = null;
 Object.assign(arena, {
   setupDuel(people) {
-    const n = people.length, RA = Math.max(9, Math.min(17, 7 + n * .7));
+    const n = people.length, RA = Math.max(5, Math.min(9.5, 3.6 + n * .32));
     this.zombies = []; this.truck = { x: 0, tx: 0, on: false, door: 0, doorT: 0, riders: [] };
     this.duel = { RA, go: false, t: 0, killAt: 6, idx: 0, pending: null, kills: [], fx: [], frames: [], recT: 0, final: false, ended: false, winner: null, endT: 0, seq: [] };
     this.humans = people.map((p, i) => {
@@ -2697,7 +2731,7 @@ Object.assign(arena, {
     if (!D.ended && !D.pending && alive.length > 1 && D.t >= D.killAt) {
       const v = this.humans.find(h => h.id === D.seq[D.idx].id);
       if (v && v.alive) {
-        v.doomed = true; D.pending = v; D.pendT = D.t; v.ringPlan = Math.hypot(v.x, v.z) > D.RA * .45 && Math.random() < .6; v.ringFloor = Math.max(1, Math.min(v.hp, rnd(20, 60)));
+        v.doomed = true; D.pending = v; D.pendT = D.t; v.ringPlan = Math.random() < .55; v.ringFloor = Math.max(1, Math.min(v.hp, rnd(20, 60)));
         const k = alive.filter(h => h !== v).sort((p, q) => Math.hypot(p.x - v.x, p.z - v.z) - Math.hypot(q.x - v.x, q.z - v.z))[0];
         if (k) { k.target = v; k.hunt = true; }
       }
@@ -2708,12 +2742,14 @@ Object.assign(arena, {
       // 움직임·중력
       const fr = h.st === 'fly' ? .25 : h.st === 'hit' || h.st === 'ko' ? 2 : 6;
       h.x += h.vx * dt; h.z += h.vz * dt; h.vx *= Math.exp(-dt * fr); h.vz *= Math.exp(-dt * fr);
-      h.vy -= 22 * dt; h.y += h.vy * dt;
+      h.vy -= (h.y < -.5 && !h.alive ? 11 : 22) * dt; h.y += h.vy * dt;
+      // 낭떠러지 쪽 가장자리는 곧 밀려날 사람만 갈 수 있음 (나머지는 안쪽에서 싸움)
+      if (h.alive && !(h.doomed && h.ringPlan)) { const rr = Math.hypot(h.x, h.z), lim = D.RA * .74; if (rr > lim) { const k = lim / rr; h.x *= k; h.z *= k; const vr = (h.vx * h.x + h.vz * h.z) / lim; if (vr > 0) { h.vx -= vr * h.x / lim; h.vz -= vr * h.z / lim; } } }
       const r = Math.hypot(h.x, h.z);
       if (r <= D.RA) { if (h.y < 0 && h.y > -1.5) { h.y = 0; h.vy = 0; } }
       else if (h.alive) { const k = (D.RA - .4) / r; h.x *= k; h.z *= k; h.vx *= -.3; h.vz *= -.3; if (h.y < 0) { h.y = 0; h.vy = 0; } }
-      if (h.y < -2 && !h.alive && !h.screamed) { h.screamed = true; SFX.scream(); }
-      if (h.y < -40) h.alpha = 0;
+      if (h.y < -.8 && !h.alive && !h.screamed) { h.screamed = true; this.kSfx(h, 'fallScream'); }
+      if (h.y < -34) h.alpha = Math.max(0, h.alpha - dt * 2);
       const lieT = h.st === 'down' || h.st === 'ko' ? 1.45 : h.st === 'hit' ? .7 : h.st === 'fly' ? 1 : 0;
       h.lie += (lieT - h.lie) * Math.min(1, dt * 10);
       h.sq = h.st === 'swing' && h.swing ? Math.min(1, (D.t - h.swing.t0) / .42) : -1;
@@ -2765,7 +2801,7 @@ Object.assign(arena, {
     let da = want - h.ang; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2; h.ang += da * Math.min(1, dt * 8);
     const spd = (h.hunt ? 4.2 : 3) * (h.doomed ? .75 : 1), gap = 1.5;
     let tvx = dist > gap ? dx / dist * spd : -dx / dist * .6, tvz = dist > gap ? dz / dist * spd : -dz / dist * .6;
-    if (h.doomed && h.ringPlan) { const r = Math.hypot(h.x, h.z) || 1; if (r < D.RA * .8) { tvx += h.x / r * 2.4; tvz += h.z / r * 2.4; } }
+    if (h.doomed && h.ringPlan) { const r = Math.hypot(h.x, h.z) || 1; if (r < D.RA * .9) { tvx += h.x / r * 3.2; tvz += h.z / r * 3.2; } }
     h.vx += (tvx - h.vx) * Math.min(1, dt * 6); h.vz += (tvz - h.vz) * Math.min(1, dt * 6);
     h.cd -= dt;
     if (dist < 2 && h.cd <= 0 && Math.abs(da) < .6) { h.st = 'swing'; h.swing = { t0: D.t }; this.kSfx(h, 'slash'); }
@@ -2790,26 +2826,27 @@ Object.assign(arena, {
     h.hits++; this.kSfx(tg, 'hit');
     this.wsplat(tg.x, 1.1, tg.z, ['#ffffff', '#ffe066', '#ff9f9f'], 18, 4);
     D.fx.push({ t: D.t, x: tg.x, z: tg.z, k: 'hit' });
-    if (tg === D.pending) return this.eliminate(tg, h, nx, nz);
+    // 낭떠러지로 떨어질 사람은 가장자리까지 밀린 뒤에 마지막 한 방 (너무 오래 걸리면 그냥 쓰러짐)
+    if (tg === D.pending && !(tg.ringPlan && Math.hypot(tg.x, tg.z) < D.RA * .8 && D.t - D.pendT < 7)) return this.eliminate(tg, h, nx, nz);
     tg.hp = Math.max(Math.min(tg.hp, this.hpFloor(tg)), tg.hp - rnd(9, 17));
     tg.vx += nx * 6; tg.vz += nz * 6; tg.vy = 4; tg.st = 'hit'; tg.stT = .32; this.shake(3);
   },
   eliminate(v, k, nx, nz) {
-    const D = this.duel, r = Math.hypot(v.x, v.z), ring = r > D.RA * .68 && (v.ringPlan || Math.random() < .35);
+    const D = this.duel, r = Math.hypot(v.x, v.z), ring = v.ringPlan && r > D.RA * .8;
     v.doomed = false; v.alive = false; D.pending = null; D.idx++; k.kills++; k.hunt = false; k.target = null;
     const alive = this.humans.filter(h => h.alive).length;
     D.killAt = D.t + (alive === 2 ? 7.5 : alive <= 4 ? 4.2 : 3.2);
     D.kills.push({ t: D.t, killer: k.id, victim: v.id, ring });
     if (ring) {
       const ox = r > .5 ? v.x / r : nx, oz = r > .5 ? v.z / r : nz, dx = ox * .65 + nx * .35, dz = oz * .65 + nz * .35, l = Math.hypot(dx, dz) || 1;
-      v.vx = dx / l * 9.5; v.vz = dz / l * 9.5; v.vy = 6.5; v.st = 'fly'; v.tumble = rnd(2.5, 4) * (Math.random() < .5 ? -1 : 1);
+      v.vx = dx / l * 9.5; v.vz = dz / l * 9.5; v.vy = 6.5; v.st = 'fly'; v.tumble = rnd(2.5, 4) * (Math.random() < .5 ? -1 : 1); D.watch = v;
       SFX.whoosh(); this.shake(8);
     } else {
       v.hp = 0; v.vx = nx * 7; v.vz = nz * 7; v.vy = 7; v.st = 'ko'; v.koT = D.t; SFX.boom(); this.shake(10);
       this.wsplat(v.x, 1.2, v.z, ['#ffffff', '#f6c445', '#ff7b6b'], 36, 6);
     }
     // 탈락 순간은 잠깐 느리게 + 가까이
-    if (!this.slow && this.follow == null) { this.slow = { id: v.id, other: k.id, ring, until: performance.now() + (ring ? 3000 : alive === 1 ? 2600 : 1500) }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
+    if (!this.slow && this.follow == null) { this.slow = { id: v.id, other: k.id, ring, until: performance.now() + (ring ? 1700 : alive === 1 ? 2600 : 1500) }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
     if (this.onOut) this.onOut(v);
   },
   // 최고의 플레이: 우승자가 가장 많이 활약한 구간을 다시 보여 줌
@@ -2884,7 +2921,7 @@ Object.assign(R3, {
       c.position.set(Math.cos(a) * rr, y, Math.sin(a) * rr); c.rotation.y = rnd(0, 3); cg.add(c);
     }
     // 우승 빛기둥
-    const beam = new T.Mesh(new T.CylinderGeometry(1.1, 1.6, 30, 24, 1, true), new T.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: .35, side: T.DoubleSide, depthWrite: false }));
+    const beam = new T.Mesh(new T.CylinderGeometry(.55, .9, 30, 24, 1, true), new T.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: .2, side: T.DoubleSide, depthWrite: false }));
     beam.visible = false; this.scene.add(beam); this.beam = beam;
   },
   makeDueler(h) {
@@ -2922,7 +2959,7 @@ Object.assign(R3, {
     }
     for (const [id, m] of this.duelers) if (!seen.has(id)) { this.scene.remove(m.g); this.duelers.delete(id); }
     // 우승 빛기둥
-    const W = D.winner; this.beam.visible = !!(D.ended && W && !A.replay); if (this.beam.visible) { this.beam.position.set(W.x, 12, W.z); this.beam.material.opacity = .25 + .1 * Math.sin(t * 5); this.beam.rotation.y += dt; }
+    const W = D.winner; this.beam.visible = !!(D.ended && W && !A.replay); if (this.beam.visible) { this.beam.position.set(W.x, 12, W.z); this.beam.material.opacity = .14 + .05 * Math.sin(t * 5); this.beam.rotation.y += dt; }
     // 입자
     const pos = this.pts.geometry.attributes.position, col = this.pts.geometry.attributes.color, c3 = new T.Color();
     let n = 0;
@@ -2939,24 +2976,26 @@ Object.assign(R3, {
         s => { const b = a0 + 1.5 + Math.PI * 2 * s, r = RA * .3; return { p: [Math.cos(b) * r, 2.3, Math.sin(b) * r], l: [Math.cos(b + .35) * RA * .62, 1.1, Math.sin(b + .35) * RA * .62] }; });
     } else if (A.replay) {
       const h = byId(A.replay.wid), fx = Math.cos(h.ang), fz = Math.sin(h.ang);
-      want.set(h.x - fx * 4.2 - fz * 2.4, 2.8, h.z - fz * 4.2 + fx * 2.4); look.set(h.x + fx * 1.5, 1, h.z + fz * 1.5); k = 1 - Math.exp(-dt * 5);
+      let cx = h.x - fx * 6 - fz * 3, cz = h.z - fz * 6 + fx * 3;
+      want.set(cx, 5.4, cz); look.set(h.x + fx * 1.2, .9, h.z + fz * 1.2); k = 1 - Math.exp(-dt * 5);
     } else if (D.ended && W) {
-      const a = t * .7; want.set(W.x + Math.cos(a) * 5.2, 2.4, W.z + Math.sin(a) * 5.2); look.set(W.x, 1.3, W.z); k = 1 - Math.exp(-dt * 3);
+      const a = t * .5, rr = 7; let cx = W.x + Math.cos(a) * rr, cz = W.z + Math.sin(a) * rr;
+      want.set(cx, 5.2, cz); look.set(W.x, 1.1, W.z); k = 1 - Math.exp(-dt * 3);
     } else if (A.follow != null && byId(A.follow) && byId(A.follow).alpha > 0) {
-      const h = byId(A.follow); want.set(h.x - Math.cos(h.ang) * 4.5, 3.2, h.z - Math.sin(h.ang) * 4.5); look.set(h.x, 1, h.z);
-    } else if (A.slow && A.slow.ring && byId(A.slow.id) && byId(A.slow.id).y < .5 && Math.hypot(byId(A.slow.id).x, byId(A.slow.id).z) > D.RA - .5) {
-      // 낭떠러지 끝에서 아래로 떨어지는 친구를 내려다봄
-      const a = byId(A.slow.id), r = Math.hypot(a.x, a.z) || 1, ux = a.x / r, uz = a.z / r;
-      want.set(ux * (D.RA - 2.5), 5.5, uz * (D.RA - 2.5)); look.set(a.x, Math.max(a.y, -30), a.z); k = 1 - Math.exp(-dt * 3);
+      const h = byId(A.follow); want.set(h.x - Math.cos(h.ang) * 6.5, 4.6, h.z - Math.sin(h.ang) * 6.5); look.set(h.x, 1, h.z);
+    } else if (A.follow == null && !D.ended && D.watch && D.watch.alpha > 0 && D.watch.y > -33 && (D.watch.y < .3 || Math.hypot(D.watch.x, D.watch.z) > D.RA - 1.5)) {
+      // 낭떠러지 끝에서 아래로 떨어지는 친구를 구름 속으로 사라질 때까지 내려다봄
+      const a = D.watch, r = Math.hypot(a.x, a.z) || 1, ux = a.x / r, uz = a.z / r;
+      const dn = Math.max(0, -a.y), px = -uz, pz = ux, R = D.RA + 3.5 + dn * .08; want.set(ux * R + px * 5.5, 5 - dn * .1, uz * R + pz * 5.5); look.set(a.x, Math.max(a.y, -34) + .5, a.z); k = 1 - Math.exp(-dt * 3.5);
     } else if ((A.slow || D.final) && alive.length >= 1) {
       const a = A.slow ? byId(A.slow.id) : alive[0], b = A.slow ? byId(A.slow.other) : alive[1] || alive[0];
       const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2, dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, px = -dz / l, pz = dx / l;
       const side = (px * mx + pz * mz) > 0 ? -1 : 1; // 결투장 안쪽에서 바라봄
-      want.set(mx + px * side * 4.8, A.slow ? 2.1 : 2.6, mz + pz * side * 4.8); look.set(mx, Math.max(.9, (a.y + b.y) / 2 + 1), mz); k = 1 - Math.exp(-dt * 4);
+      want.set(mx + px * side * 6.8, A.slow ? 3.2 : 3.8, mz + pz * side * 6.8); look.set(mx, Math.max(.9, (a.y + b.y) / 2 + 1), mz); k = 1 - Math.exp(-dt * 4);
     } else {
       let cx = 0, cz = 0; alive.forEach(h => { cx += h.x; cz += h.z; }); if (alive.length) { cx /= alive.length; cz /= alive.length; }
-      const a = t * .06 + .6, R = D.RA * 1.55;
-      want.set(cx * .5 + Math.cos(a) * R, D.RA * 1.05, cz * .5 + Math.sin(a) * R); look.set(cx * .6, 0, cz * .6);
+      const a = t * .06 + .6, R = Math.max(15, D.RA * 2.3);
+      want.set(cx * .4 + Math.cos(a) * R, Math.max(10, D.RA * 1.55), cz * .4 + Math.sin(a) * R); look.set(cx * .5, -.5, cz * .5);
     }
     if (this.snapCam) { this.camPos.copy(want); this.camLook.copy(look); this.snapCam = false; }
     this.camPos.lerp(want, k); this.camLook.lerp(look, k);
@@ -3100,7 +3139,7 @@ function lowerThird(kind, tagText, name, sub, ms) {
   return new Promise(res => { ltSkip = () => { clearTimeout(ltT); ltSkip = null; res(); }; ltT = setTimeout(() => { ltSkip = null; res(); }, ms); });
 }
 function hideLT() { $('#lt').hidden = true; clearTimeout(ltT); ltSkip = null; }
-function cancelRun() { RUN++; if (arena.replay) arena.endReplay(false); R3.intro = null; arena.hold = false; $('#startHud').hidden = true; if (arena.slow) arena.endSlow(); MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
+function cancelRun() { RUN++; SFX.screech(0); if (arena.replay) arena.endReplay(false); R3.intro = null; arena.hold = false; $('#startHud').hidden = true; if (arena.slow) arena.endSlow(); MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
 
 async function countdown(label, tok) {
   document.body.classList.add('alarm'); arena.panic = true;

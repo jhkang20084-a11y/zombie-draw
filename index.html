@@ -980,7 +980,8 @@ const arena = {
     if (this.slow && performance.now() > this.slow.until) this.endSlow();
     this.slowK = this.slow ? .25 : (this.mode === 'duel' && this.duel && this.duel.final && !this.duel.ended ? .5 : 1);
     if (this.replay) this.replayStep(dt); else for (let i = 0; i < TS; i++) this.update(dt * this.slowK);
-    if (R3.ok) R3.render(this, dt); else if (this.mode !== 'race') this.draw();
+    // 2x·4x면 카메라 움직임도 그만큼 빠르게
+    if (R3.ok) R3.render(this, Math.min(.12, dt * TS)); else if (this.mode !== 'race') this.draw();
     requestAnimationFrame(tt => this.loop(tt));
   },
   update(dt) {
@@ -1432,7 +1433,7 @@ const arena = {
     if (tok !== RUN) return done();
     h.state = 'pit'; h.sink = this.t; h.x = h.tx = p.x; h.d = p.d; h.rotT = 0; h.rot = 0; h.fall = 0; h.ramp = 0; h.jump = null; h.knock = false;
     const s = this.sOf(h.d); this.splat(h.x, this.yOf(h.d) - 10 * s, ['#8a6a4a', '#c9b597', '#efe6d2'], 40, 6);
-    SFX.whoosh(); this.kSfx(h, 'fallScream'); setTimeout(() => SFX.bonk(), sp(450)); this.shake(9);
+    SFX.whoosh(); setTimeout(() => SFX.bonk(), sp(450)); this.shake(9);
     done();
     await sleep(sp(1000)); if (tok !== RUN) return;
     h.alpha = 0; h.catching = false;
@@ -2610,7 +2611,7 @@ Object.assign(R3, {
         const back = Math.min(...pool.map(h => A.arc(h))), front = Math.max(...A.humans.map(h => A.arc(h)));
         const last = pool.reduce((m, h) => (A.arc(h) < A.arc(m) ? h : m), pool[0]), lo = (last.d - .5) * RL * .6;
         if (this.camArc == null || this.snapCam) this.camArc = back - 6.5;
-        this.camArc += (R.go && !R.podium ? R.v * dt / PX : 0);
+        this.camArc += (R.go && !R.podium ? R.v * dt * (A.slowK || 1) / PX : 0);
         this.camArc += (back - 6.5 - this.camArc) * Math.min(1, dt * 2);
         this.camLo = this.camLo == null ? lo : this.camLo + (lo - this.camLo) * Math.min(1, dt * 2);
         // 앞 카트들과 많이 벌어질수록 카메라를 조금씩 높이고 뒤로 빼서 대부분의 카트가 보이게
@@ -2740,13 +2741,17 @@ Object.assign(arena, {
     for (const h of this.humans) {
       if (h.alive) this.duelAI(h, alive, dt);
       // 움직임·중력
-      const fr = h.st === 'fly' ? .25 : h.st === 'hit' || h.st === 'ko' ? 2 : 6;
+      const fr = h.st === 'fly' ? .25 : h.st === 'ko' ? 4.5 : h.st === 'hit' ? 2 : 6;
       h.x += h.vx * dt; h.z += h.vz * dt; h.vx *= Math.exp(-dt * fr); h.vz *= Math.exp(-dt * fr);
       h.vy -= (h.y < -.5 && !h.alive ? 11 : 22) * dt; h.y += h.vy * dt;
       // 낭떠러지 쪽 가장자리는 곧 밀려날 사람만 갈 수 있음 (나머지는 안쪽에서 싸움)
       if (h.alive && !(h.doomed && h.ringPlan)) { const rr = Math.hypot(h.x, h.z), lim = D.RA * .74; if (rr > lim) { const k = lim / rr; h.x *= k; h.z *= k; const vr = (h.vx * h.x + h.vz * h.z) / lim; if (vr > 0) { h.vx -= vr * h.x / lim; h.vz -= vr * h.z / lim; } } }
       const r = Math.hypot(h.x, h.z);
-      if (r <= D.RA) { if (h.y < 0 && h.y > -1.5) { h.y = 0; h.vy = 0; } }
+      // 한 번 가장자리 밖으로 떨어지기 시작하면 다시 바닥 안쪽으로 들어오지 않음 (바닥을 뚫고 떨어지는 것처럼 보이지 않게)
+      if (!h.alive && h.y < -.2 && r < D.RA + .4) { const k = (D.RA + .4) / (r || 1); h.x *= k; h.z *= k; }
+      // 체력 0으로 쓰러진 사람은 칼에 맞아 밀릴 때가 아니면 가장자리 안쪽에 머묾
+      else if (!h.alive && h.st === 'ko' && h.y > -.2 && r > D.RA - .6 && !(D.t - (h.hitT || -9) < .8)) { const k = (D.RA - .6) / r; h.x *= k; h.z *= k; h.vx *= .3; h.vz *= .3; }
+      if (Math.hypot(h.x, h.z) <= D.RA) { if (h.y < 0 && h.y > -1.5) { h.y = 0; h.vy = 0; } }
       else if (h.alive) { const k = (D.RA - .4) / r; h.x *= k; h.z *= k; h.vx *= -.3; h.vz *= -.3; if (h.y < 0) { h.y = 0; h.vy = 0; } }
       if (h.y < -.8 && !h.alive && !h.screamed) { h.screamed = true; this.kSfx(h, 'fallScream'); }
       if (h.y < -34) h.alpha = Math.max(0, h.alpha - dt * 2);
@@ -2811,7 +2816,7 @@ Object.assign(arena, {
     for (const b of this.humans) {
       if (b.alive || b.st !== 'ko' || b.y < -.5) continue;
       const dx = b.x - h.x, dz = b.z - h.z, d = Math.hypot(dx, dz) || .01;
-      if (d < 2.3 && (fx * dx + fz * dz) / d > .3) { b.vx += dx / d * 6; b.vz += dz / d * 6; b.vy = 2.6; SFX.bonk(); this.wsplat(b.x, .6, b.z, ['#ffffff', '#e8e2d6'], 8, 3); D.fx.push({ t: D.t, x: b.x, z: b.z, k: 'hit' }); }
+      if (d < 2.3 && (fx * dx + fz * dz) / d > .3) { b.hitT = D.t; b.vx += dx / d * 6; b.vz += dz / d * 6; b.vy = 2.6; SFX.bonk(); this.wsplat(b.x, .6, b.z, ['#ffffff', '#e8e2d6'], 8, 3); D.fx.push({ t: D.t, x: b.x, z: b.z, k: 'hit' }); }
     }
     if (!tg || !tg.alive) return;
     const dx = tg.x - h.x, dz = tg.z - h.z, dist = Math.hypot(dx, dz) || .01;
@@ -2842,7 +2847,7 @@ Object.assign(arena, {
       v.vx = dx / l * 9.5; v.vz = dz / l * 9.5; v.vy = 6.5; v.st = 'fly'; v.tumble = rnd(2.5, 4) * (Math.random() < .5 ? -1 : 1); D.watch = v;
       SFX.whoosh(); this.shake(8);
     } else {
-      v.hp = 0; v.vx = nx * 7; v.vz = nz * 7; v.vy = 7; v.st = 'ko'; v.koT = D.t; SFX.boom(); this.shake(10);
+      v.hp = 0; v.vx = nx * 4.5; v.vz = nz * 4.5; v.vy = 6; v.st = 'ko'; v.koT = D.t; SFX.boom(); this.shake(10);
       this.wsplat(v.x, 1.2, v.z, ['#ffffff', '#f6c445', '#ff7b6b'], 36, 6);
     }
     // 탈락 순간은 잠깐 느리게 + 가까이
@@ -3039,7 +3044,7 @@ function buildResultsDuel() {
 
 // 시작 전 게임처럼 선수 몇 명을 하나씩 가까이 소개
 async function introSeq(tok) {
-  const dur = 11000; R3.intro = { t0: performance.now(), dur, a0: Math.random() * 6.283 }; SFX.whoosh();
+  const dur = 11000 / TS; R3.intro = { t0: performance.now(), dur, a0: Math.random() * 6.283 }; SFX.whoosh();
   await sleep(dur); if (tok !== RUN) return;
   R3.intro = null;
 }

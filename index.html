@@ -450,7 +450,7 @@ const SFX = {
   osc(type, f0, f1, t0, dur, vol) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
     o.type = type; o.frequency.setValueAtTime(f0, t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
-    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + .012); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(Math.max(.0002, vol * (this.mul || 1)), t0 + .012); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
     o.connect(g); g.connect(this.out); o.start(t0); o.stop(t0 + dur + .05);
   },
   noise(t0, dur, vol, ftype, freq, q = 1) {
@@ -458,7 +458,7 @@ const SFX = {
     if (!this.nb) { const b = c.createBuffer(1, c.sampleRate * 1.5, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; this.nb = b; }
     const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
     s.buffer = this.nb; f.type = ftype; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    g.gain.setValueAtTime(Math.max(.0002, vol * (this.mul || 1)), t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
     s.connect(f); f.connect(g); g.connect(this.out); s.start(t0); s.stop(t0 + dur + .05);
   },
   tick() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .035, .22, 'highpass', 3200); this.osc('square', 1500, 0, t, .03, .035); },
@@ -494,6 +494,16 @@ const SFX = {
   boom() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .7, .7, 'lowpass', 900); this.osc('sine', 130, 38, t, .55, .5); this.osc('square', 300, 60, t, .25, .06); },
   zap() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .25, .35, 'highpass', 2500); this.osc('square', 1300, 200, t, .25, .07); this.osc('sawtooth', 300, 2400, t + .05, .2, .05); },
   skid() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('triangle', 950, 300, t, .55, .1); this.noise(t, .45, .16, 'bandpass', 2000, 3); },
+  boost() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sawtooth', 180, 950, t, .45, .09); this.osc('triangle', 360, 1500, t + .05, .4, .12); this.noise(t, .5, .25, 'highpass', 3000); },
+  missile() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('square', 1500, 480, t, .9, .045); this.osc('sine', 900, 300, t, .9, .06); this.noise(t, .9, .14, 'bandpass', 1800, 2); },
+  humStart() {
+    if (!this.ok() || this.humO) return;
+    const c = this.ctx, o = c.createOscillator(), o2 = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
+    o.type = 'sawtooth'; o.frequency.value = 62; o2.type = 'square'; o2.frequency.value = 93; fl.type = 'lowpass'; fl.frequency.value = 360;
+    g.gain.setValueAtTime(.0001, c.currentTime); g.gain.exponentialRampToValueAtTime(.045, c.currentTime + .6);
+    o.connect(fl); o2.connect(fl); fl.connect(g); g.connect(this.out); o.start(); o2.start(); this.humO = [o, o2]; this.humG = g;
+  },
+  humStop() { if (!this.humO) return; try { const c = this.ctx; this.humG.gain.setTargetAtTime(.0001, c.currentTime, .12); this.humO.forEach(o => o.stop(c.currentTime + .6)); } catch (e) {} this.humO = null; },
   tap() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('square', 420, 160, t, .09, .07); this.noise(t, .06, .12, 'bandpass', 1200, 2); },
   bonk() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sine', 190, 70, t, .16, .45); this.osc('square', 1100, 520, t + .02, .12, .05); },
   poof() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .35, .35, 'bandpass', 1500, 1.2); this.osc('triangle', 880, 220, t, .32, .16); this.osc('sine', 1760, 440, t + .05, .25, .06); },
@@ -502,7 +512,7 @@ const SFX = {
     const c = this.ctx, t = c.currentTime; this.noise(t, .01, .0001, 'lowpass', 100);
     const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = this.nb;
     f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2400, t + .4);
-    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.28, t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + .45);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, .28 * (this.mul || 1)), t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + .45);
     s.connect(f); f.connect(g); g.connect(this.out); s.start(t); s.stop(t + .5);
   },
   phew() { if (!this.ok()) return; const t = this.ctx.currentTime; [659.25, 783.99, 1046.5].forEach((fq, i) => this.osc('triangle', fq, 0, t + i * .07, .16, .12)); },
@@ -1853,7 +1863,7 @@ Object.assign(arena, {
         if (this.t - (p.bumpT || 0) > .7 && this.t - (q.bumpT || 0) > .7) {
           p.bumpT = q.bumpT = this.t; p.bump = { t0: this.t, s }; q.bump = { t0: this.t, s: -s };
           if (!p.crash) p.dT = LANES[Math.max(0, Math.min(4, laneOf(p.d) + s))]; if (!q.crash) q.dT = LANES[Math.max(0, Math.min(4, laneOf(q.d) - s))];
-          SFX.tap(); this.splat((p.x + q.x) / 2, this.yOf((p.d + q.d) / 2) - 20, ['#ffffff', '#f6c445'], 6, 2);
+          this.kSfx(this.follow === q.id ? q : p, 'tap'); this.splat((p.x + q.x) / 2, this.yOf((p.d + q.d) / 2) - 20, ['#ffffff', '#f6c445'], 6, 2);
         }
       }
       // 트랙의 부스터 발판 3곳: 모든 차선을 가로지름
@@ -1890,6 +1900,8 @@ Object.assign(arena, {
     this.shakeAmt *= Math.pow(.02, dt); this.flash = Math.max(0, this.flash - dt * 1.8);
   },
   front() { return Math.max(...this.humans.map(o => o.x)); },
+  // 이름을 눌러 따라가는 중이면 그 친구에게 일어난 일은 크게, 다른 친구 일은 작게 들림
+  kSfx(h, name) { const f = this.follow; SFX.mul = f == null ? 1 : (h && h.id === f ? 2.3 : .3); try { SFX[name](); } finally { SFX.mul = 1; } },
   raceEvent(h) {
     if (this.t < h.stopUntil || h.crash || h.place) return;
     const r = Math.random();
@@ -1900,7 +1912,7 @@ Object.assign(arena, {
   },
   dropHazard(h, type) { this.props.push({ type, x: Math.max(h.x + 700, this.front() + 800), d: h.d, target: h, spin: Math.random() * 6 }); },
   kBoost(h, gauge) {
-    h.boostUntil = this.t + 1.4; h.boostKind = gauge ? 'blue' : 'orange'; SFX.whoosh();
+    h.boostUntil = this.t + 1.4; h.boostKind = gauge ? 'blue' : 'orange'; this.kSfx(h, 'boost');
     this.splat(h.x - 30, this.yOf(h.d) - 20, gauge ? ['#6fd6ff', '#ffffff', '#b7ecff'] : ['#ffb340', '#ff6f3c', '#fff1c2'], 18, 4);
   },
   stopKart(h, secs) { h.stopUntil = Math.max(h.stopUntil, this.t + secs); h.boostUntil = 0; },
@@ -1918,25 +1930,25 @@ Object.assign(arena, {
       const v = Math.random() < .5 ? h : o, other = v === h ? o : h;
       v.flip = { t0: this.t, dur: 1, axis: 'x' }; v.air = { t0: this.t, dur: 1, hgt: 1.6 }; this.stopKart(v, 1.8);
       other.spin = { t0: this.t, dur: .5 }; other.dT = LANES[Math.max(0, Math.min(4, laneOf(other.d) + (other.d > v.d ? 1 : -1)))];
-      SFX.bonk(); setTimeout(() => SFX.bonk(), sp(160)); this.shake(7);
+      this.kSfx(v, 'bonk'); setTimeout(() => this.kSfx(v, 'bonk'), sp(160)); this.kSfx(other, 'tap'); this.shake(7);
       this.splat((h.x + o.x) / 2, this.yOf(v.d) - 30, ['#ffffff', '#f6c445', '#ff7b6b'], 26, 6);
     }
   },
   zapKart(h) {
     this.props.push({ type: 'bolt', x: h.x, d: h.d, target: h, life: .45 });
-    h.smallUntil = this.t + 3.5; SFX.zap(); this.flash = .35; this.flashCol = '255,240,150';
+    h.smallUntil = this.t + 3.5; this.kSfx(h, 'zap'); this.flash = .35; this.flashCol = '255,240,150';
     this.splat(h.x, this.yOf(h.d) - 40, ['#ffe066', '#ffffff'], 22, 5);
   },
   fireMissile() {
     const live = this.humans.filter(h => !h.place && this.t >= h.stopUntil); if (live.length < 2) return;
     const leader = live.reduce((m, q) => (q.x > m.x ? q : m), live[0]), back = Math.min(...this.humans.map(h => h.x));
-    this.props.push({ type: 'missile', x: back - 220 * this.u, d: leader.d, target: leader }); SFX.whoosh();
+    this.props.push({ type: 'missile', x: back - 220 * this.u, d: leader.d, target: leader }); this.kSfx(leader, 'missile');
   },
   hitKart(h, kind) {
     const s = this.yOf(h.d);
     if (kind === 'missile') { h.air = { t0: this.t, dur: 1.15, hgt: 2.8 }; h.spin = { t0: this.t, dur: 1.15 }; this.stopKart(h, 1.9); this.shake(11); this.flash = .45; this.flashCol = '255,200,150'; }
     else { h.air = { t0: this.t, dur: .95, hgt: 2.2 }; h.flip = { t0: this.t, dur: .95, axis: 'z' }; this.stopKart(h, 1.8); this.shake(8); }
-    SFX.boom(); this.splat(h.x, s - 30, ['#ff6f3c', '#ffb340', '#4a3b2f', '#ffffff'], 44, 8);
+    this.kSfx(h, 'boom'); this.splat(h.x, s - 30, ['#ff6f3c', '#ffb340', '#4a3b2f', '#ffffff'], 44, 8);
   },
   updateRaceProps(dt, moving) {
     const G = moving ? this.race.v : 0;
@@ -1954,7 +1966,7 @@ Object.assign(arena, {
       if (p.x - h.x < 380 * this.u && p.x > h.x) { h.d += (p.d - h.d) * Math.min(1, dt * 3); h.dT = h.d; }
       if (p.x <= h.x + 10 && p.x > h.x - 60) {
         p.used = true;
-        if (p.type === 'banana') { p.dead = true; h.spin = { t0: this.t, dur: .9 }; this.stopKart(h, 1.35); SFX.skid(); this.splat(h.x, this.yOf(h.d) - 10, ['#ffe066', '#fff1c2'], 14, 3); }
+        if (p.type === 'banana') { p.dead = true; h.spin = { t0: this.t, dur: .9 }; this.stopKart(h, 1.35); this.kSfx(h, 'skid'); this.splat(h.x, this.yOf(h.d) - 10, ['#ffe066', '#fff1c2'], 14, 3); }
         else if (p.type === 'pad') this.kBoost(h, false);
         else if (p.type === 'bomb') { p.dead = true; this.hitKart(h, 'bomb'); }
       }
@@ -1968,8 +1980,8 @@ Object.assign(R3, {
   // 굽이진 순환 트랙 (0~100 격자 위 기준점 → 부드러운 곡선)
   buildTrack() {
     const T = THREE, g = new T.Group(); g.visible = false; this.scene.add(g); this.raceG = g;
-    const P = [[40, 90], [62, 90], [85, 88], [93, 78], [93, 48], [93, 20], [85, 10], [55, 12], [25, 10], [10, 18], [8, 32], [18, 42], [32, 38], [44, 30], [54, 38], [60, 50], [66, 40], [72, 30], [76, 40], [76, 58], [70, 66], [55, 64], [35, 58], [18, 58], [8, 68], [10, 82], [22, 90]];
-    const S = 1.65, curve = new T.CatmullRomCurve3(P.map(([x, y]) => new T.Vector3((x - 50) * S, 0, (y - 50) * S)), true, 'centripetal');
+    const P = [[40, 90], [70, 90], [88, 85], [93, 68], [93, 32], [87, 14], [68, 9], [42, 11], [20, 10], [9, 22], [11, 36], [24, 43], [40, 36], [56, 32], [68, 42], [72, 56], [62, 66], [44, 63], [26, 60], [11, 68], [12, 83], [24, 90]];
+    const S = 2.4, curve = new T.CatmullRomCurve3(P.map(([x, y]) => new T.Vector3((x - 50) * S, 0, (y - 50) * S)), true, 'centripetal');
     const N = 1600, pts = curve.getSpacedPoints(N); pts.pop();
     const L = curve.getLength(); this.trackL = L; this.trackN = N;
     const px = new Float32Array(N), pz = new Float32Array(N), tx = new Float32Array(N), tz = new Float32Array(N);
@@ -2195,7 +2207,7 @@ Object.assign(R3, {
       const arcH = A.arc(h), cv = this.curvAt(arcH), stopped = t < h.stopUntil, run = R.go && !R.podium && !h.place;
       const drifting = run && !h.air && !stopped && Math.abs(cv) > .028;
       h.dA = (h.dA || 0) + ((drifting ? Math.max(-.62, Math.min(.62, -cv * 7)) : 0) - (h.dA || 0)) * Math.min(1, dt * 5);
-      if (drifting && !h.drifting && t - (h.sqT || 0) > 2) { h.sqT = t; if (Math.random() < .35) SFX.skid(); }
+      if (drifting && !h.drifting && t - (h.sqT || 0) > 2) { h.sqT = t; if (Math.random() < .35 || A.follow === h.id) A.kSfx(h, 'skid'); }
       h.drifting = drifting;
       m.g.rotation.set(rx, p.yaw + ry - steer + bump + h.dA, rz);
       // 드리프트하거나 급브레이크(멈출 때·부딪힐 때)를 밟으면 뒷바퀴 자국
@@ -2348,13 +2360,13 @@ function startRace() {
   if (!R3.ok) { toast('이 기기에서는 레이싱 화면을 쓸 수 없어요. 숲으로 출발을 이용해 주세요.'); goHome(); return; }
   arena.setup(people, 'race'); R3.clearSkids();
   RC.seq.forEach((p, i) => { arena.race.rank[p.id] = i; });
-  arena.onFinish = h => { SFX.pop(); if (h.place === 1) SFX.stinger(); arena.splat(h.x, arena.yOf(h.d) - 60, ['#f6c445', '#ffffff', '#ff7b6b', '#6fb7ff'], 30, 6); };
-  arena.onPodium = () => { RC.done = true; buildResultsRace(); $('#zNext').hidden = false; setStatus('레이스 종료 · 결과 확정', 'done'); SFX.fanfare(); celebrate(); };
+  arena.onFinish = h => { arena.kSfx(h, 'pop'); if (h.place === 1) SFX.stinger(); arena.splat(h.x, arena.yOf(h.d) - 60, ['#f6c445', '#ffffff', '#ff7b6b', '#6fb7ff'], 30, 6); };
+  arena.onPodium = () => { SFX.humStop(); RC.done = true; buildResultsRace(); $('#zNext').hidden = false; setStatus('레이스 종료 · 결과 확정', 'done'); SFX.fanfare(); celebrate(); };
   $('#zNext').hidden = true; hideLT();
   MUSIC.use('music-race.mp3'); MUSIC.reset(); MUSIC.start();
   setStatus(`레이스 준비 · ${RC.n}명`, null);
   const tok = RUN;
-  setTimeout(async () => { if (tok !== RUN) return; await countdown('', tok); if (tok !== RUN) return; arena.race.go = true; SFX.engine(1.2); }, 700);
+  setTimeout(async () => { if (tok !== RUN) return; await countdown('', tok); if (tok !== RUN) return; arena.race.go = true; SFX.engine(1.2); SFX.humStart(); }, 700);
 }
 function buildResultsRace() {
   R = { mode: 'race', at: new Date(), n: RC.n, rows: RC.seq.map((p, i) => ({ rank: i + 1, name: p.name })) };
@@ -2430,7 +2442,7 @@ function lowerThird(kind, tagText, name, sub, ms) {
   return new Promise(res => { ltSkip = () => { clearTimeout(ltT); ltSkip = null; res(); }; ltT = setTimeout(() => { ltSkip = null; res(); }, ms); });
 }
 function hideLT() { $('#lt').hidden = true; clearTimeout(ltT); ltSkip = null; }
-function cancelRun() { RUN++; MUSIC.stop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
+function cancelRun() { RUN++; MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
 
 async function countdown(label, tok) {
   document.body.classList.add('alarm'); arena.panic = true;
@@ -2706,7 +2718,7 @@ function goHome() { cancelRun(); MUSIC.reset(); renderRoster(); show('setup'); s
 
 /* ───────── 도구 ───────── */
 function syncSound() { const b = $('#soundBtn'); b.setAttribute('aria-pressed', String(SFX.on)); b.querySelector('.wave').style.display = SFX.on ? '' : 'none'; b.querySelector('.mute').style.display = SFX.on ? 'none' : ''; }
-$('#soundBtn').addEventListener('click', () => { SFX.on = !SFX.on; store.set('zs-sound', SFX.on); syncSound(); SFX.init(); if (!SFX.on) MUSIC.stop(); else if (activeStage()) MUSIC.start(); toast(SFX.on ? '효과음을 켰습니다' : '효과음을 껐습니다'); });
+$('#soundBtn').addEventListener('click', () => { SFX.on = !SFX.on; store.set('zs-sound', SFX.on); syncSound(); SFX.init(); if (!SFX.on) { MUSIC.stop(); SFX.humStop(); } else if (activeStage()) { MUSIC.start(); if (arena.mode === 'race' && arena.race && arena.race.go && !arena.race.podium) SFX.humStart(); } toast(SFX.on ? '효과음을 켰습니다' : '효과음을 껐습니다'); });
 $('#fsBtn').addEventListener('click', async () => {
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); }
   catch (e) { toast('이 화면에서는 전체 화면을 쓸 수 없습니다'); }

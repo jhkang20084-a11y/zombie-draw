@@ -135,6 +135,11 @@ input:focus,textarea:focus{outline:none;border-color:var(--leaf-deep);box-shadow
 .meter.dead strong{color:var(--leaf-deep)}
 .meter.round strong,.meter.saved strong{color:#c8921a}
 .ctrls{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.arena-wrap::before,.arena-wrap::after{content:"";position:absolute;left:0;right:0;height:0;background:#1d1a17;z-index:4;transition:height .35s ease;pointer-events:none}
+.arena-wrap::before{top:0}.arena-wrap::after{bottom:0}
+.arena-wrap.slowmo::before,.arena-wrap.slowmo::after{height:9%}
+.arena-wrap.slowmo #arenaLabels{filter:saturate(1.2)}
+.rank{z-index:5}
 .arena-wrap.full{position:fixed;inset:0;z-index:30;border:0;border-radius:0;box-shadow:none;background:#cfe6d6}
 body.staging{overflow:hidden}
 #miniMap{position:absolute;z-index:5;top:max(66px,calc(env(safe-area-inset-top,0px) + 54px));left:max(12px,env(safe-area-inset-left,0px));width:170px;height:170px;pointer-events:none}
@@ -142,6 +147,9 @@ body.staging{overflow:hidden}
 .hud{position:absolute;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .hud-tl{top:max(12px,env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));max-width:calc(100% - 200px)}
 .hud-br{right:max(14px,env(safe-area-inset-right,0px));bottom:max(14px,env(safe-area-inset-bottom,0px))}
+.hud-start{left:50%;transform:translateX(-50%);bottom:max(22px,env(safe-area-inset-bottom,0px));gap:12px;flex-wrap:nowrap}
+.hud-start .btn.big{min-height:58px;font-size:21px;padding:0 30px}
+.hud-start #goBtn{padding:0 46px}
 .hud-bc{left:50%;transform:translateX(-50%);bottom:max(22px,env(safe-area-inset-bottom,0px))}
 .hud .btn{min-height:40px;font-size:15px;padding:0 14px}
 .hud-bc .btn.big{min-height:58px;font-size:22px;padding:0 34px;animation:boing .5s cubic-bezier(.2,1.6,.4,1)}
@@ -385,6 +393,7 @@ details.mini[open] summary .label{visibility:hidden}
       </button>
   </div>
   <div class="hud hud-bc"><button class="btn gold big" id="zNext" type="button" hidden>결과 보기</button></div>
+  <div class="hud hud-start" id="startHud" hidden><button class="btn big" id="shuffleBtn" type="button">자리 섞기</button><button class="btn primary big" id="goBtn" type="button">시작</button></div>
   <div class="zres" id="result" hidden role="dialog" aria-label="추첨 결과">
     <div class="zres-card">
       <div class="res-head"><span class="label" id="rMode" hidden></span><h2 id="rTitle"></h2><p id="rMeta" hidden></p></div>
@@ -541,7 +550,7 @@ const S = { roster: store.get('zs-roster', null), isExample: false, mode: store.
 if (!Array.isArray(S.roster) || !S.roster.length) { S.roster = EXAMPLE.slice(); S.isExample = true; }
 let RUN = 0, Z = null, D = null, R = null, lastStage = null;
 let TS = 1; const GS = 230; // 배속, 달리기(땅) 속도 px/s
-const sp = ms => Math.round(ms * S.speed / TS);
+const sp = ms => Math.round(ms * S.speed / TS / (arena.slowK || 1));
 document.body.classList.toggle('lite', !!S.lite);
 
 /* ───────── 손그림 숲 배경 (페이지 + 추격 무대 공용) ───────── */
@@ -778,7 +787,27 @@ const arena = {
   yOf(d) { return this.roadTop + 26 * this.u + d * (this.roadBot - this.roadTop - 30 * this.u); },
   sOf(d) { return this.u * (.66 + .5 * d); },
   band() { const W = this.W; const right = this.truck && this.truck.on ? Math.min(W * .9, this.truck.x - 30 * this.u) : W * (R3.ok ? 1.55 : .92); return [W * (R3.ok ? .4 : .42), Math.max(W * .55, right)]; },
+  // 1~3등 자리를 두고 추월하는 순간: 시간을 느리게 하고 두 친구를 가까이 비춤
+  startSlow(id, other) {
+    if (this.slow || this.follow != null || this.t - (this.slowAt || -99) < 6) return;
+    this.slow = { id, other, until: performance.now() + 2300 }; this.slowAt = this.t;
+    this.wrap.classList.add('slowmo'); SFX.heart(); setTimeout(() => SFX.heart(), 700);
+    try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {}
+  },
+  endSlow() {
+    this.slow = null; this.slowK = 1; this.wrap.classList.remove('slowmo');
+    try { if (MUSIC.el) MUSIC.el.playbackRate = 1; } catch (e) {}
+  },
+  // 추월 감지: 앞쪽 3자리 안으로 누가 앞 친구를 제치고 올라왔는지
+  checkPass(order, prev, near) {
+    if (!prev) return;
+    for (let i = 0; i < Math.min(3, order.length); i++) {
+      const h = order[i], pi = prev.indexOf(h.id);
+      if (pi > i) { const o = this.humans.find(q => q.id === prev[i]); if (o && near(h, o)) { this.startSlow(h.id, o.id); return; } }
+    }
+  },
   setup(people, mode) {
+    if (this.slow) this.endSlow(); this.prevOrderF = null; this.slowAt = -99;
     this.mode = mode; this.parts = []; this.props = []; this.follow = null; this.focus = null; if (R3.ok) R3.reset(); this.surge = 0; this.panic = false; this.target = null; this.flash = 0;
     if (!this.W) this.resize();
     if (mode === 'race') return this.setupRace(people);
@@ -805,12 +834,15 @@ const arena = {
   loop(t) {
     if (!this.on) return;
     const dt = Math.min(.05, (t - this.last) / 1000 || 0); this.last = t;
-    for (let i = 0; i < TS; i++) this.update(dt);
+    if (this.slow && performance.now() > this.slow.until) this.endSlow();
+    this.slowK = this.slow ? .25 : 1;
+    for (let i = 0; i < TS; i++) this.update(dt * this.slowK);
     if (R3.ok) R3.render(this, dt); else if (this.mode !== 'race') this.draw();
     requestAnimationFrame(tt => this.loop(tt));
   },
   update(dt) {
     if (this.mode === 'race') return this.updateRace(dt);
+    if (this.hold) { this.t += dt; for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * this.u * dt; p.life -= p.dec * dt; } this.parts = this.parts.filter(p => p.life > 0); return; }
     const W = this.W, u = this.u; this.t += dt;
     const spd = 1 + this.surge;
     this.scroll += GS * u * spd * dt;
@@ -850,6 +882,11 @@ const arena = {
       const p = this.humans[i], q = this.humans[j];
       if (p.state === 'fallen' || q.state === 'fallen' || p.state === 'pit' || q.state === 'pit' || p.state === 'down' || q.state === 'down') continue;
       const dd = p.d - q.d; if (Math.abs(p.x - q.x) < 42 * u && Math.abs(dd) < .1) { const s = dd >= 0 ? 1 : -1, k = (.1 - Math.abs(dd)) * .15; p.d = Math.max(0, Math.min(1, p.d + s * k)); q.d = Math.max(0, Math.min(1, q.d - s * k)); }
+    }
+    if (Z && !Z.done && Z.n - Z.idx <= 3 && this.follow == null) {
+      const ord = this.humans.filter(h => h.state === 'run' || h.state === 'tired' || h.state === 'sprint').sort((p, q) => q.x - p.x);
+      this.checkPass(ord, this.prevOrderF, (h, o) => Math.abs(h.x - o.x) < 70 * u);
+      this.prevOrderF = ord.map(h => h.id);
     }
     this.humans = this.humans.filter(h => h.alpha > 0);
     this.updateProps(dt, spd);
@@ -1059,6 +1096,13 @@ const arena = {
     await sleep(sp(550));
   },
   // 달리기 순서 배치: 곧 잡힐 친구일수록 무리 뒤쪽에서 달리지만, 개인차(jit)가 있어 꼭 맨 뒤는 아님
+  // 출발 대기 자리: 차선 여러 줄로 서고, 누가 어디 설지는 무작위 (결과와 무관)
+  shuffleStart() {
+    const n = this.humans.length, [a, b] = this.band(), L = Math.min(5, Math.max(2, n)), rows = Math.ceil(n / L), mid = a + (b - a) * .5;
+    const slots = []; for (let i = 0; i < n; i++) { const r = Math.floor(i / L), c = i % L; slots.push({ x: mid + ((rows - 1) / 2 - r) * 85 * this.u - (c % 2) * 28 * this.u, d: L > 1 ? .08 + c * (.84 / (L - 1)) : .5 }); }
+    shuffle(slots).forEach((s, i) => { const h = this.humans[i]; h.x = h.tx = s.x; h.d = s.d; h.jit = 0; h.next = rnd(.5, 1.5); });
+    this.splat(mid, this.yOf(.5) - 40 * this.u, ['#ffffff', '#f6c445', '#a9d18e'], 24, 4);
+  },
   arrange() {
     const [a, b] = this.band();
     this.humans.forEach(h => {
@@ -1644,7 +1688,7 @@ const R3 = {
     for (const h of A.humans) {
       seen.add(h.id);
       let m = this.chars.get(h.id); if (!m) { m = this.makeRunner(h); this.chars.set(h.id, m); }
-      const still = h.state === 'down' || h.state === 'bitten' || h.state === 'fallen' || h.state === 'pit' || h.knock, cheer = h.state === 'cheer', p = h.ph;
+      const still = h.state === 'down' || h.state === 'bitten' || h.state === 'fallen' || h.state === 'pit' || h.knock || A.hold, cheer = h.state === 'cheer', p = h.ph;
       const lie = Math.min(1, h.rot / 1.45);
       let lift = 0;
       if (h.jump) { const q = (t - h.jump.t0) / h.jump.dur; if (q >= 1 || q < 0) h.jump = null; else lift = Math.sin(Math.PI * q) * (h.jump.big ? 1.75 : 1.15); }
@@ -1708,11 +1752,14 @@ const R3 = {
     this.pts.geometry.setDrawRange(0, n); pos.needsUpdate = true; col.needsUpdate = true;
     // 카메라: 따라가기 > 잡히는 순간 클로즈업 > 무리 전체
     const live = A.humans.filter(h => h.alpha > 0 && h.state !== 'fallen' && h.state !== 'down' && h.state !== 'bitten');
-    let fid = A.follow != null ? A.follow : (A.focus && t < A.focus.until ? A.focus.id : null);
+    let fid = A.slow ? A.slow.id : A.follow != null ? A.follow : (A.focus && t < A.focus.until ? A.focus.id : null);
     let fh = fid != null ? A.humans.find(h => h.id === fid && h.alpha > 0) : null;
     if (A.follow != null && !fh) { A.follow = null; this.rankKey = ''; }
     const want = new T.Vector3(), look = new T.Vector3();
-    if (fh) {
+    if (fh && A.slow) {
+      const o = A.humans.find(h => h.id === A.slow.other), x = this.wx(o ? fh.x * .65 + o.x * .35 : fh.x), z = this.lz(o ? fh.d * .65 + o.d * .35 : fh.d);
+      want.set(x + 2.3, 2.3, z + 4.6); look.set(x - .3, .9, z * .7);
+    } else if (fh) {
       const x = this.wx(fh.x), z = this.lz(fh.d), close = A.follow != null ? 1 : .85;
       want.set(x + 3.4 * close, 3.4, z + 6.4 * close); look.set(x - 1.4, .8, z * .6);
     } else {
@@ -1893,6 +1940,11 @@ Object.assign(arena, {
       }
       if (R.finished.length === n && R.doneAt == null) R.doneAt = this.t;
     }
+    if (moving && this.follow == null) {
+      const ord = this.humans.slice().sort((p, q) => (p.place || 999) - (q.place || 999) || q.x - p.x);
+      if (prog > .55) this.checkPass(ord.filter(h => !h.place || true), R.prevOrder, (h, o) => !h.place && !o.place && Math.abs(h.x - o.x) < 230 * u);
+      R.prevOrder = ord.map(h => h.id);
+    }
     if (R.doneAt != null && !R.podium && this.t - R.doneAt > 1.6) { R.podium = { t0: this.t }; if (this.onPodium) this.onPodium(); }
     this.updateRaceProps(dt, moving);
     for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 900 * u * dt; p.life -= p.dec * dt; }
@@ -1900,6 +1952,11 @@ Object.assign(arena, {
     this.shakeAmt *= Math.pow(.02, dt); this.flash = Math.max(0, this.flash - dt * 1.8);
   },
   front() { return Math.max(...this.humans.map(o => o.x)); },
+  shuffleGrid() {
+    const slots = shuffle(this.humans.map(h => ({ x: h.x, d: h.d })));
+    this.humans.forEach((h, i) => { h.x = h.tx = slots[i].x; h.d = h.dT = slots[i].d; h.pa = null; });
+    if (this.race) this.race.prevOrder = null;
+  },
   // 이름을 눌러 따라가는 중이면 그 친구에게 일어난 일은 크게, 다른 친구 일은 작게 들림
   kSfx(h, name) { const f = this.follow; SFX.mul = f == null ? 1 : (h && h.id === f ? 2.3 : .3); try { SFX[name](); } finally { SFX.mul = 1; } },
   raceEvent(h) {
@@ -2281,8 +2338,12 @@ Object.assign(R3, {
         c.k.flame.visible = q > 0 && q < 1;
       }
     } else {
-      const fh = A.follow != null ? A.humans.find(h => h.id === A.follow) : null;
-      if (fh) {
+      const sl = A.slow && A.humans.find(h => h.id === A.slow.id), so = A.slow && A.humans.find(h => h.id === A.slow.other);
+      const fh = !sl && A.follow != null ? A.humans.find(h => h.id === A.follow) : null;
+      if (sl) {
+        const p = kp.get(sl.id), q = so ? kp.get(so.id) : p, mx = p.x * .62 + q.x * .38, mz = p.z * .62 + q.z * .38, nx = -p.tz, nz = p.tx;
+        want.set(mx + p.tx * 2.4 + nx * 5.4, 2.5, mz + p.tz * 2.4 + nz * 5.4); look.set(mx, .9, mz); k = 1 - Math.exp(-dt * 5);
+      } else if (fh) {
         const p = kp.get(fh.id), nx = -p.tz, nz = p.tx;
         want.set(p.x + p.tx * 5.2 + nx * 6.4, 4.6, p.z + p.tz * 5.2 + nz * 6.4); look.set(p.x - p.tx * 1.2, .8, p.z - p.tz * 1.2); k = 1 - Math.exp(-dt * 7);
       } else {
@@ -2363,11 +2424,27 @@ function startRace() {
   arena.onFinish = h => { arena.kSfx(h, 'pop'); if (h.place === 1) SFX.stinger(); arena.splat(h.x, arena.yOf(h.d) - 60, ['#f6c445', '#ffffff', '#ff7b6b', '#6fb7ff'], 30, 6); };
   arena.onPodium = () => { SFX.humStop(); RC.done = true; buildResultsRace(); $('#zNext').hidden = false; setStatus('레이스 종료 · 결과 확정', 'done'); SFX.fanfare(); celebrate(); };
   $('#zNext').hidden = true; hideLT();
-  MUSIC.use('music-race.mp3'); MUSIC.reset(); MUSIC.start();
+  arena.shuffleGrid(); RC.waiting = true; $('#startHud').hidden = false;
+  MUSIC.use('music-race.mp3'); MUSIC.reset();
   setStatus(`레이스 준비 · ${RC.n}명`, null);
-  const tok = RUN;
-  setTimeout(async () => { if (tok !== RUN) return; await countdown('', tok); if (tok !== RUN) return; arena.race.go = true; SFX.engine(1.2); SFX.humStart(); }, 700);
 }
+// 대기 중 "시작"을 누르면 그때부터 진행
+async function goStart() {
+  if (arena.mode === 'race') {
+    if (!RC || !RC.waiting) return;
+    RC.waiting = false; $('#startHud').hidden = true; SFX.init(); MUSIC.start();
+    const tok = RUN; await countdown('', tok); if (tok !== RUN) return; arena.race.go = true; SFX.engine(1.2); SFX.humStart();
+  } else {
+    if (!Z || !Z.waiting) return;
+    Z.waiting = false; $('#startHud').hidden = true; arena.hold = false; SFX.init(); MUSIC.start(); zombieNext();
+  }
+}
+$('#goBtn').addEventListener('click', goStart);
+$('#shuffleBtn').addEventListener('click', () => {
+  SFX.init(); SFX.pop();
+  if (arena.mode === 'race') { if (RC && RC.waiting) arena.shuffleGrid(); }
+  else if (Z && Z.waiting) arena.shuffleStart();
+});
 function buildResultsRace() {
   R = { mode: 'race', at: new Date(), n: RC.n, rows: RC.seq.map((p, i) => ({ rank: i + 1, name: p.name })) };
 }
@@ -2442,7 +2519,7 @@ function lowerThird(kind, tagText, name, sub, ms) {
   return new Promise(res => { ltSkip = () => { clearTimeout(ltT); ltSkip = null; res(); }; ltT = setTimeout(() => { ltSkip = null; res(); }, ms); });
 }
 function hideLT() { $('#lt').hidden = true; clearTimeout(ltT); ltSkip = null; }
-function cancelRun() { RUN++; MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
+function cancelRun() { RUN++; arena.hold = false; $('#startHud').hidden = true; if (arena.slow) arena.endSlow(); MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
 
 async function countdown(label, tok) {
   document.body.classList.add('alarm'); arena.panic = true;
@@ -2512,11 +2589,10 @@ function startZombie() {
   $('#zlog').innerHTML = '<li class="empty-log">고블린 무리가 다가오고 있어요…</li>';
   lastStage = 'zombie'; show('zombie'); arena.setup(people, 'zombie');
   arena.paceOf = id => { const rem = Z.seq.slice(Z.idx); const i = rem.findIndex(p => p.id === id); return rem.length > 1 ? Math.max(0, i) / (rem.length - 1) : 1; };
-  arena.arrange();
-  MUSIC.use('music-forest.mp3'); MUSIC.reset(); MUSIC.start();
+  arena.shuffleStart(); arena.hold = true; Z.waiting = true; $('#startHud').hidden = false;
+  MUSIC.use('music-forest.mp3'); MUSIC.reset();
   Z.auto = true; syncZ();
   setStatus(`고블린 숲 입장 · 생존자 ${Z.n}명`, null);
-  const tok = RUN; setTimeout(() => { if (tok === RUN) zombieNext(); }, 700);
 }
 function syncZ() {
   const left = Z.n - Z.idx;
@@ -2530,7 +2606,8 @@ function markBitten(p, rank, round) {
   zlog(`<span><b>${esc(p.name)}</b> 고블린에게 붙잡혀 쓰러짐 — ${Z.n - rank + 1}번</span>`, 'inf');
 }
 async function zombieNext() {
-  if (arena.mode === 'race') { if (RC && RC.done) showResults(); return; }
+  if (arena.mode === 'race') { if (RC && RC.waiting) return goStart(); if (RC && RC.done) showResults(); return; }
+  if (Z && Z.waiting) return goStart();
   if (!Z) return;
   if (Z.done) { showResults(); return; }
   if (Z.busy) return;
@@ -2593,8 +2670,8 @@ $('#zNext').addEventListener('click', zombieNext);
 document.querySelectorAll('.spd button').forEach(b => b.addEventListener('click', () => { TS = +b.dataset.ts; document.querySelectorAll('.spd button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); SFX.init(); SFX.tick(); }));
 $('#zSkip').addEventListener('click', zombieSkip);
 $('#zRedo').addEventListener('click', async () => {
-  if (arena.mode === 'race') { if (RC && !RC.done && arena.race && arena.race.go && !(await confirmBox('다시 뽑기', '진행 중인 레이스를 버리고 같은 명단으로 처음부터 다시 할까요?', '다시 뽑기'))) return; startRace(); toast('새 무작위 순서로 다시 시작합니다'); return; } if (Z && Z.idx > 0 && !Z.done && !(await confirmBox('다시 뽑기', '진행 중인 추첨을 버리고 같은 명단으로 처음부터 다시 뽑을까요?', '다시 뽑기'))) return; startZombie(); toast('새 무작위 순서로 다시 시작합니다'); });
-$('#zHome').addEventListener('click', async () => { if (((Z && Z.idx > 0 && !Z.done) || (arena.mode === 'race' && RC && !RC.done && arena.race && arena.race.go)) && !(await confirmBox('명단으로 돌아가기', '진행 중인 추첨이 사라집니다. 명단 화면으로 갈까요?', '돌아가기'))) return; goHome(); });
+  if (arena.mode === 'race') { if (RC && !RC.done && !RC.waiting && !(await confirmBox('다시 뽑기', '진행 중인 레이스를 버리고 같은 명단으로 처음부터 다시 할까요?', '다시 뽑기'))) return; startRace(); toast('새 무작위 순서로 다시 시작합니다'); return; } if (Z && !Z.done && !Z.waiting && !(await confirmBox('다시 뽑기', '진행 중인 추첨을 버리고 같은 명단으로 처음부터 다시 뽑을까요?', '다시 뽑기'))) return; startZombie(); toast('새 무작위 순서로 다시 시작합니다'); });
+$('#zHome').addEventListener('click', async () => { if (((arena.mode !== 'race' && Z && !Z.done && !Z.waiting) || (arena.mode === 'race' && RC && !RC.done && !RC.waiting)) && !(await confirmBox('명단으로 돌아가기', '진행 중인 추첨이 사라집니다. 명단 화면으로 갈까요?', '돌아가기'))) return; goHome(); });
 
 /* ───────── 일반 순서 뽑기 (구조 순서) ───────── */
 function startOrder() {

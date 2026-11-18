@@ -359,6 +359,7 @@ details.mini[open] summary .label{visibility:hidden}
 </head>
 <body>
 
+
 <canvas id="bg" aria-hidden="true"></canvas>
 <div class="alarm-wash" aria-hidden="true"></div>
 
@@ -1044,7 +1045,7 @@ const arena = {
     if (!this.on) return;
     const dt = Math.min(.05, (t - this.last) / 1000 || 0); this.last = t;
     if (this.slow && performance.now() > this.slow.until) this.endSlow();
-    this.slowK = this.slow ? .25 : (this.mode === 'duel' && this.duel && this.duel.final && !this.duel.ended ? .5 : 1);
+    this.slowK = this.slow ? .25 : (this.mode === 'duel' && this.duel && this.duel.final && !this.duel.ended && this.duel.style !== 'sea' ? .5 : 1);
     if (this.replay) this.replayStep(dt); else for (let i = 0; i < TS; i++) this.update(dt * this.slowK);
     // 2x·4x면 카메라 움직임도 그만큼 빠르게
     if (R3.ok) R3.render(this, Math.min(.12, dt * TS)); else if (this.mode !== 'race') this.draw();
@@ -2821,7 +2822,15 @@ const SEA_FISH = [
   { n: '엔젤피시', c: '#f4e27a', b: '#fff7c9', f: '#f4e27a', s: [.45, .6, .16], k: 'angel' },
   { n: '고등어', c: '#3c8d8a', b: '#e4eef0', f: '#2c5f5d', s: [.85, .32, .28], k: 'mack' },
   { n: '연어', c: '#e88a78', b: '#f5d5cc', f: '#c86c5e', s: [.9, .38, .3], k: 'salmon' },
-  { n: '블루탱', c: '#2f6fe0', b: '#6aa0ff', f: '#f6c445', s: [.6, .46, .2], k: 'tang' }
+  { n: '블루탱', c: '#2f6fe0', b: '#6aa0ff', f: '#f6c445', s: [.6, .46, .2], k: 'tang' },
+  { n: '개복치', c: '#9aa7b4', b: '#e3e8ed', f: '#8693a0', s: [.8, .95, .22], k: 'sun' },
+  { n: '장어', c: '#5b5a3a', b: '#cfc68e', f: '#4a4930', s: [1.7, .22, .2], k: 'eel' },
+  { n: '멸치', c: '#a9bccb', b: '#eef4f8', f: '#8fa6b8', s: [.42, .15, .12], k: 'anch' },
+  { n: '참돔', c: '#e86a7a', b: '#ffd9de', f: '#d85466', s: [.78, .55, .26], k: 'bream' },
+  { n: '쏠배감펭', c: '#d9573f', b: '#fff0e6', f: '#f2b8a8', s: [.62, .42, .28], k: 'lion' },
+  { n: '청새치', c: '#2d4f8f', b: '#dfe8f2', f: '#2d4f8f', s: [1.35, .4, .28], k: 'marlin' },
+  { n: '나비고기', c: '#ffd23f', b: '#fff6c9', f: '#ffd23f', s: [.5, .5, .14], k: 'butter' },
+  { n: '아귀', c: '#7a6450', b: '#c9b49c', f: '#6a5440', s: [.7, .55, .6], k: 'angler' }
 ];
 function lavaGrid(k) { const out = []; for (let q = -k; q <= k; q++) for (let r = Math.max(-k, -q - k); r <= Math.min(k, -q + k); r++) out.push({ x: LAVA.SP * (q + r / 2), z: LAVA.SP * r * Math.sqrt(3) / 2, ring: Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) }); return out; }
 const lavaK = RA => Math.max(2, Math.round(RA / LAVA.SP - .6));
@@ -2850,7 +2859,7 @@ Object.assign(arena, {
     });
     if (style === 'lava') this.lavaPlace();
     if (style === 'rail') { const K = railK(RA); this.duel.rail = { K, XL: RA, lanes: Array.from({ length: K }, (_, j) => ({ j, st: 'idle', t0: 0, dur: 0, dir: 1 })), trains: [], tid: 0 }; this.railPlace(); }
-    if (style === 'sea') { const kinds = shuffle([...Array(n).keys()]); this.duel.sea = { boatX: -4, boatTX: -4, bob: 0, hook: { st: 'idle', x: 0, y: 0, depth: -5 }, lured: [], reelT: 0 }; this.duel.final = true; this.humans.forEach((h, i) => { h.fish = kinds[i] % SEA_FISH.length; h.ult = null; h.sc = rnd(.95, 1.2); }); this.seaPlace(); }
+    if (style === 'sea') { const kinds = shuffle([...Array(n).keys()]); this.duel.sea = { boatX: -4, boatTX: -4, bob: 0, hook: { st: 'idle', x: 0, y: 0, depth: -5 }, lured: [], reelT: 0 }; this.duel.final = true; this.humans.forEach((h, i) => { h.fish = kinds[i] % SEA_FISH.length; h.ult = null; h.sc = rnd(.7, 1.5); }); this.seaPlace(); }
     if (style === 'tower') { this.duel.worm = { s: -9, chomp: -9 }; this.humans.forEach(h => { h.ult = rnd(0, .3); h.vf = rnd(0, 6.283); h.spd = Math.random(); h.spdT = rnd(6, 14); }); this.towerPlace(); }
   },
   // 철길: 나란한 선로 위에 서 있다가 신호가 울린 선로로 기차가 지나감. 피하지 못한 친구가 탈락
@@ -2865,7 +2874,8 @@ Object.assign(arena, {
     const opts = [h.lane - 1, h.lane + 1].filter(free);
     let to = opts.length ? opts[Math.floor(Math.random() * opts.length)] : null;
     if (to == null) { if (!urgent) return; to = h.lane > 0 ? h.lane - 1 : 1; }
-    h.hop = { t0: D.t, dur: urgent ? .35 : .5, fz: h.z, tz: railZ(R, to), hgt: 1.1, to }; h.escT = null; this.kSfx(h, 'hop');
+    // 점프 없이 옆 선로로 비스듬히 뛰어감
+    h.hop = { t0: D.t, dur: urgent ? .6 : rnd(.95, 1.25), fz: h.z, tz: railZ(R, to), to }; h.escT = null;
   },
   railHit(v, tr, alive) {
     const D = this.duel; v.doomed = false; v.alive = false; v.fly = true; v.flyT = D.t; v.st = 'fly'; D.idx++; v.hp = 0;
@@ -2881,18 +2891,20 @@ Object.assign(arena, {
     const D = this.duel, R = D.rail, keep = D.keep || 1, XL = R.XL, RUN = 4.5;
     // 무리 전체가 앞으로 달림 (끝나면 천천히 멈춤)
     const run = D.ended ? RUN * Math.max(0, 1 - (D.t - D.endT) / 1.5) : D.go ? RUN : 0; R.cx += run * dt;
-    for (const ln of R.lanes) if (ln.st === 'warn' && D.t >= ln.t0 + ln.dur) { ln.st = 'train'; R.trains.push({ lane: ln.j, dir: ln.dir, x: R.cx - ln.dir * (XL + 50), sp: 30, id: ++R.tid }); SFX.horn(); }
+    for (const ln of R.lanes) if (ln.st === 'warn' && D.t >= ln.t0 + ln.dur) { ln.st = 'train'; R.trains.push({ lane: ln.j, dir: ln.dir, x: R.cx - ln.dir * (XL + 110), sp: 78, id: ++R.tid }); SFX.horn(); }
     if (R.lanes.some(l => l.st !== 'idle') && D.t >= (R.bellT || 0)) { R.bellT = D.t + .42; SFX.bell(); }
     if (R.trains.length && D.t >= (R.chugT || 0)) { R.chugT = D.t + .2; SFX.chug(); }
     for (const tr of R.trains) {
       tr.x += tr.dir * tr.sp * dt;
       // 기차가 화면에 들어올 때 한 번 더 길게 빵
       if (!tr.h2 && Math.abs(tr.x - R.cx) < XL + 14) { tr.h2 = true; SFX.horn(); }
-      for (const h of this.humans) {
-        if (!h.alive || h.lane !== tr.lane || h.hop || h.fly) continue;
+      // 뒤쪽(먼저 닿는) 친구부터 차례로 치임
+      const inLane = this.humans.filter(h => h.alive && h.lane === tr.lane && !h.hop && !h.fly).sort((p, q) => (p.x - q.x) * tr.dir);
+      for (const h of inLane) {
         const ahead = (h.x - tr.x) * tr.dir;
-        if (!h.doomed && ahead < 12 && ahead > -2) { this.railHop(h, true); continue; }
-        if (h.doomed && ahead < 6 && h.jumpT == null) h.jumpT = D.t;
+        if (!h.doomed && ahead < 45 && ahead > -2) { this.railHop(h, true); continue; }
+        // 치이기 직전부터 슬로모션: 달려드는 기차 얼굴이 크게 다가옴
+        if (h.doomed && ahead < 14 && !this.slow && this.follow == null) { this.slow = { id: h.id, other: h.id, ring: true, until: performance.now() + 2600 }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
         if (h.doomed && ahead <= .6) this.railHit(h, tr, alive);
       }
     }
@@ -2907,17 +2919,22 @@ Object.assign(arena, {
       }
       if (!h.alive) continue;
       // 무리 안에서 앞뒤로 조금씩 자리를 바꿈
-      if (!D.ended && Math.random() < dt * .25) h.trx = Math.max(-XL + 1, Math.min(XL - 1, h.rx + rnd(-3, 3)));
-      const dr = h.trx - h.rx, w = D.ended ? 0 : Math.abs(dr) > .2 ? Math.sign(dr) * 1.3 : 0; h.rx += w * dt;
+      if (!D.ended && !h.doomed && Math.random() < dt * .25) h.trx = Math.max(-XL + 1, Math.min(XL - 1, h.rx + rnd(-3, 3)));
+      const dr = h.trx - h.rx, w = D.ended ? 0 : Math.abs(dr) > .2 ? Math.sign(dr) * Math.min(h.doomed ? 2.6 : 1.3, Math.abs(dr) * 3) : 0; h.rx += w * dt;
+      // 다른 선로의 친구 무리에 합류 (여러 선로를 비스듬히 가로질러 달림)
+      if (h.moveTo != null && !h.hop) { const to = h.moveTo; h.moveTo = null; if (to !== h.lane) h.hop = { t0: D.t, dur: .8 + .4 * Math.abs(to - h.lane), fz: h.z, tz: railZ(R, to), to }; }
       h.x = R.cx + h.rx; h.vx = run + w; h.vz = 0;
       if (h.hop) {
         const q = (D.t - h.hop.t0) / h.hop.dur;
-        if (q >= 1) { h.z = h.hop.tz; h.y = 0; h.lane = h.hop.to; h.hop = null; }
-        else { h.z = h.hop.fz + (h.hop.tz - h.hop.fz) * q; h.y = Math.sin(q * Math.PI) * h.hop.hgt; }
+        h.y = 0;
+        if (q >= 1) { h.z = h.hop.tz; h.lane = h.hop.to; h.hop = null; h.vz = 0; }
+        else { const e = q * q * (3 - 2 * q), de = 6 * q * (1 - q) / h.hop.dur; h.z = h.hop.fz + (h.hop.tz - h.hop.fz) * e; h.vz = (h.hop.tz - h.hop.fz) * de; }
+        h.wantAng = Math.atan2(h.vz, Math.max(.5, h.vx)); h.ang += (h.wantAng - h.ang) * Math.min(1, dt * 10);
         continue;
       }
-      const ln = R.lanes[h.lane]; h.panic = ln.st !== 'idle';
-      h.y = h.jumpT != null ? Math.max(0, Math.sin(Math.min(1, (D.t - h.jumpT) / .5) * Math.PI) * .9) : 0;
+      // 치일 친구는 아무것도 모른 채 그냥 달림
+      const ln = R.lanes[h.lane]; h.panic = !h.doomed && (ln.st === 'warn' || ln.st === 'train');
+      h.y = 0;
       if (h.st === 'win') { h.vx = 0; continue; }
       if (h.escT != null && D.t >= h.escT) { this.railHop(h, false); if (!h.hop) h.escT = D.t + .3; continue; }
       if (!h.panic && !h.doomed && !D.ended && Math.random() < dt * .06) this.railHop(h, false);
@@ -2926,35 +2943,53 @@ Object.assign(arena, {
       h.z = railZ(R, h.lane);
     }
     for (let i = 0; i < alive.length; i++) for (let j = i + 1; j < alive.length; j++) {
-      const p = alive[i], q = alive[j]; if (p.lane !== q.lane || p.hop || q.hop || p.fly || q.fly) continue;
+      const p = alive[i], q = alive[j]; if (p.lane !== q.lane || p.hop || q.hop || p.fly || q.fly || (p.doomed && q.doomed)) continue;
       const d = q.rx - p.rx; if (Math.abs(d) < 1.2) { const k = (1.2 - Math.abs(d)) / 2 * (d >= 0 ? 1 : -1); p.rx -= k; q.rx += k; p.x = R.cx + p.rx; q.x = R.cx + q.rx; }
     }
     if (D.ended || !D.go) return;
-    // 감독: 정해진 순서대로 다음 탈락자의 선로에 신호. 같은 선로 친구들은 막판에 옆 선로로 피함
-    if (!D.pending && alive.length > keep && D.t >= D.killAt) {
-      const v = this.humans.find(h => h.id === D.seq[D.idx].id);
-      if (v && v.alive && !v.hop && R.lanes[v.lane].st === 'idle') {
-        v.doomed = true; v.jumpT = null; D.pending = v; const dur = D.final ? 3.8 : rnd(2.6, 3.2), ids = [v.id];
-        const warn = j => { const ln = R.lanes[j]; ln.st = 'warn'; ln.t0 = D.t; ln.dur = dur + rnd(-.2, .3); ln.dir = Math.random() < .5 ? 1 : -1;
-          for (const o of alive) if (o !== v && o.lane === j && !o.hop) { o.escT = D.t + ln.dur * (D.final ? rnd(.7, .85) : rnd(.35, .8)); ids.push(o.id); } };
-        warn(v.lane);
-        const others = alive.filter(o => o !== v && o.lane !== v.lane && R.lanes[o.lane].st === 'idle');
-        if (others.length && (D.final || Math.random() < .5)) { const o = others[Math.floor(Math.random() * others.length)]; ids.push(o.id); warn(o.lane); }
-        D.focus = { ids, lane: v.lane };
+    // 감독: 정해진 순서대로 다음 탈락자 1~3명을 한 선로에 모음 (먼저 탈락할 친구가 뒤쪽). 본인들은 아무것도 모름
+    if (!D.pending && !D.gather && alive.length > keep && D.t >= D.killAt) {
+      const room = alive.length - keep, r = Math.random(), want = D.final ? 1 : Math.min(room, r < .5 ? 1 : r < .82 ? 2 : 3), grp = [];
+      for (let i = 0; i < want; i++) { const p = D.seq[D.idx + i], h = p && this.humans.find(x => x.id === p.id); if (h && h.alive && !h.fly) grp.push(h); else break; }
+      const v0 = grp[0];
+      if (v0 && !v0.hop && R.lanes[v0.lane].st === 'idle' && !R.trains.some(o => o.lane === v0.lane)) {
+        const L = v0.lane; R.lanes[L].st = 'gather';
+        const xs = grp.map(h => h.rx).sort((a, b) => a - b);
+        for (let i = 1; i < xs.length; i++) xs[i] = Math.max(xs[i], xs[i - 1] + 1.9);
+        const over = xs[xs.length - 1] - (XL - 1); if (over > 0) for (let i = 0; i < xs.length; i++) xs[i] -= over;
+        grp.forEach((h, i) => { h.doomed = true; h.escT = null; h.trx = xs[i]; if (h.lane !== L) h.moveTo = L; });
+        D.pending = grp[grp.length - 1]; D.group = grp; D.gather = { L, t0: D.t };
       }
     }
+    if (D.gather) {
+      const G = D.gather, grp = D.group, on = grp.every(h => !h.alive || (h.lane === G.L && !h.hop && h.moveTo == null)), placed = grp.every(h => Math.abs(h.trx - h.rx) < .4);
+      if (on && (placed || D.t - G.t0 > 4)) {
+        D.gather = null; const dur = D.final ? 2.8 : rnd(1.9, 2.4), ids = grp.map(h => h.id);
+        const warn = j => { const ln = R.lanes[j]; ln.st = 'warn'; ln.t0 = D.t; ln.dur = dur + rnd(-.15, .2); ln.dir = 1; // 기차는 항상 뒤에서 옴
+          for (const o of alive) if (!o.doomed && o.lane === j && !o.hop) { o.escT = D.t + ln.dur * rnd(.25, .65); ids.push(o.id); } };
+        warn(G.L);
+        const others = alive.filter(o => !o.doomed && o.lane !== G.L && R.lanes[o.lane].st === 'idle');
+        if (others.length && Math.random() < .4) { const o = others[Math.floor(Math.random() * others.length)]; ids.push(o.id); warn(o.lane); }
+        D.focus = { ids, lane: G.L };
+      }
+    }
+    // 안전장치: 기차가 지나갔는데 남은 친구가 있으면 다음 차례로 넘김
+    if (D.pending && !D.gather && D.group && D.pending.alive && !D.pending.fly) {
+      const L = D.group[0].lane;
+      if (R.lanes[L] && R.lanes[L].st === 'idle' && D.t - (D.focusT || 0) > 1) { D.group.forEach(h => { if (h.alive) h.doomed = false; }); D.pending = null; D.focus = null; D.group = null; D.killAt = D.t + 1; }
+    }
+    if (D.focus && !D.focusT) D.focusT = D.t; if (!D.focus) D.focusT = 0;
   },
-  // 바다: 옆에서 본 바다. 낚시꾼이 정해진 순서대로 물고기를 낚음. 먼저 잡힌 친구가 1등
+  // 바다: 옆에서 본 바다. 정해진 순서대로 낚시꾼에게 잡히거나 상어에게 먹힘. 먼저 잡힌 친구가 꼴등, 마지막까지 남은 물고기가 1등
   seaPlace() {
     const D = this.duel, W = D.RA;
-    this.humans.forEach(h => { h.x = h.tx = rnd(-W + 2, W - 2); h.y = h.ty = rnd(SEA.BOT + 2.5, -2.5); h.z = rnd(-2, 2); h.ang = h.face = Math.random() < .5 ? 0 : Math.PI; h.vx = h.vy = 0; h.lure = null; h.hooked = false; h.caughtFly = null; });
+    this.humans.forEach(h => { h.x = h.tx = rnd(-W + 2, W - 2); h.y = h.ty = rnd(SEA.BOT + 2.5, -2.5); h.z = rnd(-2, 2); h.ang = h.face = Math.random() < .5 ? 0 : Math.PI; h.vx = h.vy = 0; h.lure = null; h.hooked = false; h.caughtFly = null; h.flee = 0; h.fleeDir = null; h.eaten = false; });
   },
   seaStep(dt, alive) {
-    const D = this.duel, W = D.RA, S2 = D.sea, hk = S2.hook, n = this.humans.length;
+    const D = this.duel, W = D.RA, S2 = D.sea, hk = S2.hook, n = this.humans.length, keep = Math.max(1, D.keep || 1);
     S2.bob = Math.sin(D.t * 1.3) * .15;
     const tipX = () => S2.boatX + SEA.TIP, restY = SEA.TIPY + S2.bob - 1.2;
-    // 우승 물고기는 낚시꾼이 머리 위로 번쩍 들어 올림
-    if (D.ended && D.winner) { const w = D.winner; w.alpha = 1; w.x = S2.boatX - .3; w.y = 8.9 + S2.bob + Math.sin(D.t * 5) * .15; w.z = 0; w.ang += dt * 2.5; w.vy = 0; }
+    const biter = (hk.st === 'move' || hk.st === 'drop' || hk.st === 'wait' || hk.st === 'sink') ? (S2.decoy && !S2.decoyDone && S2.decoy.alive ? S2.decoy : D.pending) : null;
     for (const h of this.humans) {
       if (h.caughtFly) {
         const c = h.caughtFly, q = (D.t - c.t0) / .8;
@@ -2963,14 +2998,25 @@ Object.assign(arena, {
         continue;
       }
       if (!h.alive) continue;
+      if (D.ended) {
+        // 살아남은 물고기들이 물 위로 차례로 뛰어오르며 기뻐함 (1등은 더 높이)
+        const c = D.t - D.endT - 1 - (h.leapPh || 0), py = h.y;
+        if (c < 0) { h.y += (-2.4 - h.y) * Math.min(1, dt * 2.5); h.vy = 0; }
+        else { const ph = c % 2.4; if (ph < 1.2) { const q = ph / 1.2; h.y = -1.6 + Math.sin(q * Math.PI) * (h === D.winner ? 5.2 : 3.4); h.vy = Math.cos(q * Math.PI) * 4; } else { h.y += (-2.4 - h.y) * Math.min(1, dt * 3); h.vy = 0; } }
+        if ((py < 0) !== (h.y < 0)) { this.wsplat(h.x, .1, h.z, ['#ffffff', '#cfefff'], h === D.winner ? 14 : 6, 2.5); if (h === D.winner) this.kSfx(h, 'splash'); }
+        h.x += (h.face ? -1 : 1) * 2 * dt; if (Math.abs(h.x) > W - 2) h.face = h.x > 0 ? Math.PI : 0; h.vx = (h.face ? -1 : 1) * 2;
+        h.z += (0 - h.z) * Math.min(1, dt * 2); let da0 = (h.face || 0) - h.ang; while (da0 > Math.PI) da0 -= 6.283; while (da0 < -Math.PI) da0 += 6.283; h.ang += da0 * Math.min(1, dt * 5);
+        continue;
+      }
       if (h.hooked) { h.x = hk.x; h.y = hk.y - .55; h.z += (0 - h.z) * Math.min(1, dt * 6); continue; }
       let tx = h.tx, ty = h.ty, spd = h.spd || 1.4;
       if (h.lure) {
         const hx = (hk.st === 'move' ? S2.boatTX + SEA.TIP : hk.x), hy = hk.depth;
-        tx = hx + h.lure.ox; ty = hy + h.lure.oy; spd = 2.2;
-        if (hk.st === 'wait') { if (h === D.pending) { tx = hx + Math.sign(h.lure.ox) * .75; ty = hy - .35; } else if (h.dart) { tx = hx + Math.sign(h.lure.ox) * .6; ty = hy - .2; spd = 3.2; } }
+        tx = hx + h.lure.ox; ty = hy + h.lure.oy; spd = 4;
+        if (hk.st === 'wait') { if (h === biter) { tx = hx + Math.sign(h.lure.ox) * .75; ty = hy - .35; spd = 4.5; } else if (h.dart) { tx = hx + Math.sign(h.lure.ox) * .6; ty = hy - .2; spd = 3.2; } }
       } else if (Math.random() < dt * .25 || Math.hypot(tx - h.x, ty - h.y) < .5) { h.tx = tx = rnd(-W + 1.5, W - 1.5); h.ty = ty = rnd(SEA.BOT + 1.8, -2.2); h.spd = spd = rnd(1, 2.2); }
-      if (h.flee && D.t < h.flee) { tx = h.x + Math.sign(h.x - hk.x || 1) * 4; ty = h.y - 1.5; spd = 4.5; }
+      if (h.flee && D.t < h.flee) { tx = h.x + (h.fleeDir || Math.sign(h.x - hk.x || 1)) * 4; ty = h.fleeDir ? h.y + Math.sin(D.t * 5 + h.id) * .6 : h.y - 1.5; spd = h.fleeDir ? 5 : 4.5; }
+      else if (h.fleeDir) h.fleeDir = null;
       const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy) || 1, s = Math.min(spd, d * 2);
       h.vx += (dx / d * s - h.vx) * Math.min(1, dt * 3); h.vy += (dy / d * s - h.vy) * Math.min(1, dt * 3);
       h.x = Math.max(-W, Math.min(W, h.x + h.vx * dt)); h.y = Math.max(SEA.BOT + 1, Math.min(-1.6, h.y + h.vy * dt));
@@ -2978,49 +3024,101 @@ Object.assign(arena, {
       if (Math.abs(h.vx) > .25) h.face = h.vx > 0 ? 0 : Math.PI;
       let da = (h.face || 0) - h.ang; while (da > Math.PI) da -= 6.283; while (da < -Math.PI) da += 6.283; h.ang += da * Math.min(1, dt * 5);
     }
+    // 상어: 정해진 친구를 향해 돌진해서 한입에 꿀꺽
+    if (S2.sharkFx) { const F2 = S2.sharkFx; F2.x += F2.dir * 20 * dt; F2.open = Math.max(0, F2.open - dt * 2.5); if (F2.x * F2.dir > W + 16) S2.sharkFx = null; }
+    const SH = S2.shark;
+    if (SH) {
+      const v = SH.v;
+      if (SH.st === 'in') {
+        SH.x += SH.dir * 18 * dt; SH.y += (v.y - SH.y) * Math.min(1, dt * 4);
+        const gap = (v.x - SH.x) * SH.dir; SH.open = Math.max(0, Math.min(1, 1 - (gap - 1.8) / 5));
+        if (gap < 8 && !v.fleeDir) { v.fleeDir = SH.dir; v.flee = D.t + 6; v.lure = null; this.kSfx(v, 'bloop'); }
+        if (gap < 1.7) {
+          v.alive = false; v.alpha = 0; v.eaten = true; v.fleeDir = null; SH.st = 'out'; SH.ateT = D.t;
+          this.wsplat(v.x, v.y, 0, ['#ffffff', '#cfefff', '#9fd8ff'], 26, 3.5); this.kSfx(v, 'splash'); this.shake(7);
+          D.idx++; D.kills.push({ t: D.t, killer: -1, victim: v.id, ring: false, how: 'shark' }); if (this.onOut) this.onOut(v);
+          if (!this.slow && this.follow == null) { this.slow = { id: v.id, other: v.id, ring: true, until: performance.now() + 1300 }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
+        }
+      } else {
+        SH.x += SH.dir * 20 * dt; SH.open = Math.max(0, SH.open - dt * 2.5);
+        // 먹고 나면 곧바로 다음 차례로 (상어는 화면 밖으로 계속 헤엄쳐 나감)
+        if (SH.x * SH.dir > W + 10 || D.t - (SH.ateT || D.t) > 1.2) { S2.shark = null; S2.sharkFx = SH; D.pending = null; const left = this.humans.filter(h => h.alive).length; D.killAt = D.t + (left <= keep + 2 ? 1 : .4); }
+      }
+      if (S2.shark) for (const o of this.humans) if (o.alive && o !== v && !o.hooked && Math.abs(o.x - SH.x) < 5 && Math.abs(o.y - SH.y) < 3 && !(o.flee > D.t)) { o.flee = D.t + 1.3; o.fleeDir = Math.sign(o.x - SH.x) || 1; o.lure = null; }
+    }
     // 낚싯바늘과 배
-    if (hk.st === 'move') { const dx = S2.boatTX - S2.boatX; S2.boatX += Math.sign(dx) * Math.min(Math.abs(dx), 5 * dt); hk.x = tipX(); hk.y = restY; if (Math.abs(dx) < .05) { hk.st = 'drop'; this.kSfx(null, 'bloop'); } }
-    else if (hk.st === 'drop') { hk.x = tipX(); hk.y -= 6 * dt; if (hk.y < 0 && !hk.wet) { hk.wet = true; this.wsplat(hk.x, .2, 0, ['#ffffff', '#cfefff'], 10, 2.5); } if (hk.y <= hk.depth) { hk.y = hk.depth; hk.st = 'wait'; hk.t0 = D.t; hk.bite = rnd(1.8, 2.8) + (D.idx === n - 1 ? 0 : 0); } }
+    if (hk.st === 'move') { const dx = S2.boatTX - S2.boatX; S2.boatX += Math.sign(dx) * Math.min(Math.abs(dx), 10 * dt); hk.x = tipX(); hk.y = restY; if (Math.abs(dx) < .05) { hk.st = 'drop'; this.kSfx(null, 'bloop'); } }
+    else if (hk.st === 'drop' || hk.st === 'sink') { hk.x = tipX(); hk.y -= (hk.st === 'sink' ? 9 : 11) * dt; if (hk.y < 0 && !hk.wet) { hk.wet = true; this.wsplat(hk.x, .2, 0, ['#ffffff', '#cfefff'], 10, 2.5); } if (hk.y <= hk.depth) { hk.y = hk.depth; hk.bite = hk.st === 'sink' ? rnd(.5, .9) : rnd(.7, 1.2); hk.st = 'wait'; hk.t0 = D.t; } }
     else if (hk.st === 'wait') {
       hk.x = tipX(); hk.y = hk.depth + Math.sin(D.t * 3) * .1; const v = D.pending;
-      for (const o of S2.lured) if (o !== v && Math.random() < dt * 1.3) o.dart = !o.dart;
-      if (v && D.t - hk.t0 > hk.bite && Math.hypot(v.x - hk.x, v.y - hk.y) < 1.6) {
-        v.hooked = true; v.lure = null; hk.st = 'reel'; hk.t0 = D.t;
-        S2.lured.forEach(o => { if (o !== v) { o.lure = null; o.dart = false; o.flee = D.t + 1.2; } }); S2.lured = [];
-        this.kSfx(v, 'splash'); this.shake(4); this.wsplat(hk.x, hk.y, 0, ['#ffffff', '#cfefff'], 16, 3);
-        if (!this.slow && this.follow == null) { this.slow = { id: v.id, other: v.id, ring: true, until: performance.now() + 1300 }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
+      for (const o of S2.lured) if (o !== biter && o !== v && Math.random() < dt * 1.3) o.dart = !o.dart;
+      if (biter && D.t - hk.t0 > hk.bite && Math.hypot(biter.x - hk.x, biter.y - hk.y) < 1.6) {
+        const real = biter === v; biter.hooked = true; biter.lure = null; hk.st = 'reel'; hk.t0 = D.t; hk.fish = biter;
+        // 도망 시도: 다른 물고기가 먼저 물면 결국 빠져나가고, 정해진 친구는 버둥거려도 결국 잡힘
+        hk.esc = !real ? { t0: D.t + rnd(.25, .45), dur: rnd(.8, 1.1), ok: true } : S2.struggle ? { t0: D.t + rnd(.25, .5), dur: rnd(.8, 1.2), ok: false } : null;
+        S2.lured.forEach(o => { if (o !== biter && (real || o !== v)) { o.lure = null; o.dart = false; o.flee = D.t + 1.2; } });
+        S2.lured = real ? [] : [v];
+        this.kSfx(biter, 'splash'); this.shake(4); this.wsplat(hk.x, hk.y, 0, ['#ffffff', '#cfefff'], 16, 3);
+        if (!this.slow && this.follow == null) { this.slow = { id: biter.id, other: biter.id, ring: true, until: performance.now() + 800 }; this.wrap.classList.add('slowmo'); try { if (MUSIC.el) MUSIC.el.playbackRate = .7; } catch (e) {} }
       }
     }
     else if (hk.st === 'reel') {
-      hk.x = tipX(); hk.y += (D.t - hk.t0 < .5 ? 1.2 : 5.5) * dt; const v = D.pending;
-      if (D.t - S2.reelT > .1) { S2.reelT = D.t; this.kSfx(v, 'tick'); }
-      if (hk.y >= .3 && v && v.hooked) {
-        v.hooked = false; v.alive = false; v.caughtFly = { t0: D.t, x0: v.x, y0: v.y, x1: S2.boatX - 1.2, y1: 2 };
+      const f = hk.fish, E = hk.esc, fight = E && D.t >= E.t0 && D.t < E.t0 + E.dur;
+      if (fight) {
+        // 버둥버둥: 줄이 아래로 끌려가고 좌우로 요동
+        hk.y = Math.max(SEA.BOT + 2, hk.y - 1.3 * dt); hk.x = tipX() + Math.sin(D.t * 10) * .9;
+        if (D.t - S2.reelT > .06) { S2.reelT = D.t; this.kSfx(f, 'tick'); }
+        if (Math.random() < dt * 6) this.wsplat(hk.x, hk.y, 0, ['#ffffff', '#cfefff'], 2, 1.5);
+        if (E.ok && D.t >= E.t0 + E.dur * .85) {
+          f.hooked = false; f.lure = null; f.flee = D.t + 2.2; f.fleeDir = Math.sign(f.x - tipX()) || 1; f.vx = f.fleeDir * 4;
+          this.wsplat(hk.x, hk.y, 0, ['#ffffff', '#cfefff', '#9fd8ff'], 18, 3); this.kSfx(f, 'bloop'); this.shake(3);
+          S2.decoyDone = true; hk.esc = null; hk.fish = null; hk.st = 'sink';
+        }
+      } else {
+        hk.x = tipX(); hk.y += (D.t - hk.t0 < .3 ? 1.5 : 9) * dt;
+        if (E && E.ok) hk.y = Math.min(hk.y, -1.8);
+        if (D.t - S2.reelT > .1) { S2.reelT = D.t; this.kSfx(f, 'tick'); }
+      }
+      if (hk.st === 'reel' && hk.y >= .3 && f && f.hooked && f === D.pending) {
+        const v = f; v.hooked = false; v.alive = false; v.caughtFly = { t0: D.t, x0: v.x, y0: v.y, x1: S2.boatX - 1.2, y1: 2 };
         this.wsplat(v.x, .2, 0, ['#ffffff', '#cfefff', '#9fd8ff'], 30, 5); this.kSfx(v, 'splash');
-        D.idx++; D.kills.push({ t: D.t, killer: -1, victim: v.id, ring: false }); if (this.onOut) this.onOut(v); hk.st = 'up'; hk.wet = false;
+        D.idx++; D.kills.push({ t: D.t, killer: -1, victim: v.id, ring: false, how: 'hook' }); if (this.onOut) this.onOut(v); hk.st = 'up'; hk.wet = false; hk.fish = null; hk.esc = null;
       }
     }
-    else { hk.x = tipX(); hk.y += (restY - hk.y) * Math.min(1, dt * 4); }
+    else { hk.x = tipX(); hk.y += (restY - hk.y) * Math.min(1, dt * 7); }
     if (D.ended || !D.go) return;
-    if (D.idx >= n && !D.pending) {
-      // 모두 잡힘: 맨 먼저 잡힌 친구가 우승
-      D.ended = true; D.endT = D.t; const w = this.humans.find(h => h.id === D.seq[0].id); D.winner = w; D.winners = [w]; this.winId = w.id; w.alive = true; w.st = 'win';
-      if (this.slow) this.endSlow(); SFX.stinger(); setTimeout(() => SFX.fanfare(), 400); celebrate();
-      setTimeout(() => this.onDuelDone && this.onDuelDone(), sp(3600)); return;
+    const left = this.humans.filter(h => h.alive);
+    if (!D.pending && !S2.shark && left.length <= keep) {
+      // 끝: 마지막까지 남은 물고기가 1등 (정해진 순서의 맨 끝)
+      D.ended = true; D.endT = D.t; const w = left.find(h => h.id === D.seq[n - 1].id) || left[0];
+      D.winner = w; D.winners = left; this.winId = w.id; w.st = 'win';
+      left.forEach((h, i) => { h.lure = null; h.hooked = false; h.flee = 0; h.fleeDir = null; h.leapPh = h === w ? 0 : .5 + i * .4; });
+      hk.st = 'idle'; if (this.slow) this.endSlow(); SFX.stinger(); setTimeout(() => SFX.fanfare(), 400); celebrate();
+      setTimeout(() => this.onDuelDone && this.onDuelDone(), sp(4600)); return;
     }
-    if (!D.pending && (hk.st === 'idle' || hk.st === 'up') && Math.abs(hk.y - restY) < .4 && D.t >= D.killAt) {
+    if (!D.pending && !S2.shark && (hk.st === 'idle' || hk.st === 'up') && Math.abs(hk.y - restY) < 1 && D.t >= D.killAt) {
       const v = this.humans.find(h => h.id === D.seq[D.idx].id);
       if (v && v.alive) {
-        D.pending = v; hk.depth = Math.max(SEA.BOT + 2.5, Math.min(-3, v.y)); S2.boatTX = Math.max(-W + 3, Math.min(W - 3, v.x)) - SEA.TIP; hk.st = 'move';
-        const others = alive.filter(o => o !== v).sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, Math.random() < .5 ? 1 : 2);
-        S2.lured = [v, ...others]; S2.lured.forEach((o, i) => { o.lure = { ox: (i % 2 ? -1 : 1) * rnd(1.1, 1.9), oy: rnd(-.8, .6) }; o.dart = false; });
+        D.pending = v; S2.decoy = null; S2.decoyDone = false; S2.struggle = false;
+        if (D.idx > 0 && !S2.lastShark && Math.random() < .25) {
+          // 상어 등장: 먼 쪽에서 빠르게 헤엄쳐 옴
+          S2.lastShark = true; const dir = v.x >= 0 ? 1 : -1; S2.shark = { st: 'in', v, dir, x: -dir * (W + 10), y: v.y, open: 0 }; SFX.heart(); setTimeout(() => SFX.heart(), 600);
+        } else {
+          S2.lastShark = false;
+          hk.depth = Math.max(SEA.BOT + 2.5, Math.min(-3, v.y)); S2.boatTX = Math.max(-W + 3, Math.min(W - 3, v.x)) - SEA.TIP; hk.st = 'move';
+          const others = alive.filter(o => o !== v && o.alive).sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y)).slice(0, Math.random() < .5 ? 1 : 2);
+          S2.lured = [v, ...others]; S2.lured.forEach((o, i) => { o.lure = { ox: (i % 2 ? -1 : 1) * rnd(1.1, 1.9), oy: rnd(-.8, .6) }; o.dart = false; });
+          // 가끔 다른 물고기가 먼저 물었다가 도망치는 데 성공함 / 가끔 정해진 친구도 버둥거림(실패)
+          if (others.length && Math.random() < .3) S2.decoy = others[0];
+          S2.struggle = Math.random() < .4;
+        }
       }
     }
   },
   seaLanded(h, alive) {
     const D = this.duel; D.pending = null; D.sea.hook.st = 'idle'; this.kSfx(h, 'bloop');
-    if (D.idx === 1) { const S2 = D.sea; this.wsplat(S2.boatX - 1.2, 3.5, 0, ['#f6c445', '#fff1c2', '#ffffff'], 30, 4); SFX.stinger(); }
-    D.killAt = D.t + (alive.length <= 3 ? 1.6 : .7);
+    const left = this.humans.filter(x => x.alive).length, keep = Math.max(1, D.keep || 1);
+    D.killAt = D.t + (left <= keep + 2 ? 1 : .35);
   },
   // 타워: 나선 계단을 오르고, 무서운 지렁이가 뒤따라옴. 게이지가 차면 검은 손바닥으로 때림
   towerSync(h) { const p = towerPos(h.s, h.lane); h.x = p.x; h.y = p.y + (h.jy || 0); h.z = p.z; h.ang = Math.atan2(p.tz, p.tx); },
@@ -3380,7 +3478,7 @@ Object.assign(arena, {
     }
     // 마지막 두 명
     if (!D.final && alive.length === (D.keep || 1) + 1) { D.final = true; D.killAt = Math.max(D.killAt, D.t + 7); SFX.heart(); }
-    if (!D.ended && alive.length <= (D.keep || 1) && D.pending == null) {
+    if (!D.ended && D.style !== 'sea' && alive.length <= (D.keep || 1) && D.pending == null) {
       D.ended = true; D.endT = D.t; const w = alive.slice().sort((p, q) => q.kills - p.kills || q.hits - p.hits)[0]; D.winner = w; D.winners = alive; alive.forEach(a => { a.st = 'win'; a.vx = a.vz = 0; }); this.winId = w.id;
       if (this.slow) this.endSlow();
       SFX.stinger(); setTimeout(() => SFX.fanfare(), 400); celebrate();
@@ -3569,7 +3667,7 @@ Object.assign(R3, {
     if (this.duelG) this.scene.remove(this.duelG);
     const T = THREE, g = new T.Group(); this.duelG = g; this.duelKey = key; g.visible = false; this.scene.add(g);
     let colR = RA * .95;
-    this.boat = null; this.fisher = null; this.railSig = null; this.railScroll = null; this.railGround = null; this.weeds = null; this.bubbles = null; this.puffs = this.puffs || [];
+    this.boat = null; this.fisher = null; this.sharkM = null; this.railSig = null; this.railScroll = null; this.railGround = null; this.weeds = null; this.bubbles = null; this.puffs = this.puffs || [];
     if (this.trainM) { this.trainM.forEach(m => this.scene.remove(m)); this.trainM.clear(); }
     this.lavaTiles = null; this.embers = null; this.lavaTex = null; this.worm = null; this.hand = null; this.shards = this.shards || [];
     this.duelStyle = style; this.clouds = null; this.petals = null; this.ropes = null; this.jumbo = null; this.dfans = [];
@@ -3670,7 +3768,9 @@ Object.assign(R3, {
       const house = this.part(new T.BoxGeometry(6, 3, 3), this.M('#f2efe6'), .03, st); house.position.set(0, 2.3, -.6);
       const roof = this.part(new T.BoxGeometry(7, .4, 4), this.M('#c2452f'), .03, st); roof.position.set(0, 4, -.4);
       const sign = this.part(new T.BoxGeometry(3, .7, .1), this.M('#3d6fe0'), .03, st); sign.position.set(0, 3.2, 1);
-      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, hl = new T.Mesh(this.SPHL, this.M(i % 2 ? '#94c788' : '#a9d39b')); hl.scale.set(rnd(25, 40), rnd(8, 16), rnd(25, 40)); hl.position.set(Math.cos(a) * rnd(140, 180), -2, Math.sin(a) * rnd(140, 180)); g.add(hl); }
+      // 언덕은 선로 양옆 먼 곳에만, 친구들과 함께 따라 움직여 선로를 덮지 않음
+      const hillG = new T.Group(); g.add(hillG); this.railScroll.push({ g: hillG, snap: .001 });
+      for (let i = 0; i < 10; i++) { const s = i % 2 ? 1 : -1, hl = new T.Mesh(this.SPHL, this.M(i % 4 < 2 ? '#94c788' : '#a9d39b')); hl.scale.set(rnd(25, 40), rnd(8, 16), rnd(18, 26)); hl.position.set(-180 + i * 36 + rnd(-8, 8), -2, s * rnd(zw + 50, zw + 70)); hillG.add(hl); }
     } else if (sea) {
       // 옆에서 본 바다: 뒤쪽 하늘·바닷속 배경, 앞쪽 물빛, 모래 바닥, 해초·산호, 거품, 낚싯배와 아주 큰 낚시꾼
       const W = RA, BOT = SEA.BOT;
@@ -3720,6 +3820,21 @@ Object.assign(R3, {
       const bob = new T.Group(); g.add(bob); this.bobber = bob;
       const b1 = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ff3b30' })); b1.scale.set(.22, .16, .22); bob.add(b1);
       const b2 = new T.Mesh(this.HALF, new T.MeshBasicMaterial({ color: '#ffffff' })); b2.scale.setScalar(.22); bob.add(b2);
+      {
+        const sg = new T.Group(); sg.scale.setScalar(1.25); sg.visible = false; g.add(sg); const gM = this.M('#7d8b99'), dk = this.M('#2b2f36');
+        const bd = this.part(this.SPH, gM, .05, sg); bd.scale.set(3, .95, .85);
+        const bl = this.part(this.SPH, this.M('#eef2f5'), 0, sg); bl.scale.set(2.6, .5, .78); bl.position.y = -.4;
+        const fin2 = (par, x, y, sx, sy, rz) => { const c = this.part(this.CONE, gM, .05, par); c.scale.set(sx, sy, .12); c.rotation.z = rz; c.position.set(x, y, 0); return c; };
+        fin2(sg, -.3, 1.1, .8, 1.3, .4);
+        const tl = new T.Group(); tl.position.x = -2.8; sg.add(tl); fin2(tl, -.4, .55, .45, 1.5, .85); fin2(tl, -.3, -.4, .35, 1, Math.PI - .85);
+        [1, -1].forEach(s2 => { const pf = this.part(this.CONE, gM, .04, sg); pf.scale.set(.35, .95, .08); pf.rotation.set(s2 * .6, 0, 2.3); pf.position.set(.6, -.55, .7 * s2);
+          const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#111111' })); e.scale.setScalar(.12); e.position.set(2.05, .3, .5 * s2); sg.add(e);
+          for (let i = 0; i < 3; i++) { const gl = this.part(this.SPH, dk, 0, sg); gl.scale.set(.03, .32, .02); gl.position.set(1.15 + i * .17, -.05, .8 * s2 - s2 * i * .03); } });
+        const jaw = new T.Group(); jaw.position.set(2.2, -.3, 0); jaw.scale.setScalar(1.8); sg.add(jaw);
+        const inside = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#5a1f2a' })); jaw.add(inside);
+        const row = y0 => { const rg = new T.Group(); rg.position.y = y0; jaw.add(rg); for (let i = 0; i < 6; i++) { const th = new T.Mesh(this.CONE, new T.MeshBasicMaterial({ color: '#ffffff' })); th.scale.set(.07, .16, .07); th.position.set(.05 + (i % 2) * .04, 0, (i - 2.5) * .14); th.rotation.z = y0 > 0 ? Math.PI : 0; rg.add(th); } return rg; };
+        this.sharkM = { g: sg, tail: tl, top: row(.1), bot: row(-.1), inside };
+      }
     } else if (tower) {
       const L = RA, H = L * TOWER.PITCH, RC = TOWER.RC, W = TOWER.W, RO = RC + W;
       // 회색 벽돌 타워
@@ -3951,8 +4066,9 @@ Object.assign(R3, {
     else fin(tail, -L * .25, 0, H * .7, L * .55, -Math.PI / 2);
     fin(body, -L * .1, H * .88, L * .3, H * (sp.k === 'angel' ? 1.3 : .6), .35);
     if (sp.k === 'angel') fin(body, -L * .1, -H * .88, L * .3, H * 1.1, Math.PI - .35);
-    [1, -1].forEach(s => { const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); e.scale.setScalar(H * .24); e.position.set(L * .6, H * .22, W * .78 * s); body.add(e);
-      const p = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#141010' })); p.scale.setScalar(H * .13); p.position.set(L * .66, H * .22, W * .9 * s); body.add(p);
+    [1, -1].forEach(s => { const er = Math.max(.07, H * .24), ez = W * .78 * s; const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); e.scale.setScalar(er); e.position.set(L * .6, H * .22, ez); body.add(e);
+      const p = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#141010' })); p.scale.set(er * .6, er * .6, er * .35); p.position.set(L * .6 + er * .3, H * .22, ez + s * er * .85); body.add(p);
+      const hl = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); hl.scale.setScalar(er * .2); hl.position.set(L * .6 + er * .45, H * .22 + er * .22, ez + s * er * 1.05); body.add(hl);
       const pf = this.part(this.CONE, fM, 0, body); pf.scale.set(H * .22, L * .3, .04); pf.rotation.set(s * .5, 0, Math.PI / 2 + .6); pf.position.set(L * .15, -H * .2, W * .85 * s); });
     const mouth = this.part(this.SPHL, dark, 0, body); mouth.scale.set(.04, .05, .08); mouth.position.set(L * .98, -H * .08, 0);
     if (sp.k === 'clown') [L * .35, -L * .3].forEach(x => { const r = this.part(this.SPH, this.M('#ffffff'), 0, body); r.scale.set(.07, H * 1.02, W * 1.04); r.position.x = x; });
@@ -3961,6 +4077,17 @@ Object.assign(R3, {
     if (sp.k === 'tuna') for (let i = 0; i < 4; i++) [1, -1].forEach(s => { const f2 = this.part(this.CONE, fM, 0, body); f2.scale.set(.05, .1, .03); f2.position.set(-L * (.35 + i * .13), s * H * .62, 0); f2.rotation.z = s > 0 ? .3 : Math.PI - .3; });
     if (sp.k === 'mack') for (let i = 0; i < 5; i++) { const r = this.part(this.SPH, this.M('#1f4b4a'), 0, body); r.scale.set(L * .06, H * .3, W * 1.03); r.position.set(L * (.4 - i * .2), H * .45, 0); r.rotation.z = .4; }
     if (sp.k === 'salmon') for (let i = 0; i < 7; i++) { const d = this.part(this.SPHL, dark, 0, body); d.scale.setScalar(.035); d.position.set(rnd(-L * .5, L * .4), rnd(H * .1, H * .6), W * .95 * (i % 2 ? 1 : -1)); }
+    if (sp.k === 'sun') { fin(body, -L * .3, H * .9, L * .28, H * 1.1, .12); fin(body, -L * .3, -H * .9, L * .28, H * 1.1, Math.PI - .12); }
+    if (sp.k === 'eel') { const r = this.part(this.SPH, fM, 0, body); r.scale.set(L * .9, .05, W * .5); r.position.set(-L * .1, H * .95, 0); }
+    if (sp.k === 'anch') { const r = this.part(this.SPH, this.M('#e6eef4'), 0, body); r.scale.set(L * .88, H * .14, W * 1.03); }
+    if (sp.k === 'bream') for (let i = 0; i < 8; i++) { const d = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#6fb7ff' })); d.scale.setScalar(.035); d.position.set(rnd(-L * .5, L * .4), rnd(0, H * .55), W * .97 * (i % 2 ? 1 : -1)); body.add(d); }
+    if (sp.k === 'lion') { [L * .45, L * .15, -L * .15, -L * .45].forEach(x => { const r = this.part(this.SPH, this.M('#fff0e6'), 0, body); r.scale.set(.06, H * 1.02, W * 1.04); r.position.x = x; });
+      for (let i = 0; i < 6; i++) { const sp2 = this.part(this.CONE, fM, 0, body); sp2.scale.set(.04, .55, .04); sp2.position.set(L * (.35 - i * .15), H * 1.1, 0); sp2.rotation.z = .25; } }
+    if (sp.k === 'marlin') { const bl = this.part(this.CONE, cM, .03, body); bl.scale.set(.07, .9, .07); bl.rotation.z = -Math.PI / 2; bl.position.set(L * 1.3, -H * .02, 0); fin(body, L * .15, H * 1.05, L * .45, H * 1.3, .55); }
+    if (sp.k === 'butter') { const r = this.part(this.SPH, dark, 0, body); r.scale.set(.07, H * 1.01, W * 1.04); r.position.x = L * .42; const sp3 = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#1f1d1b' })); sp3.scale.set(.09, .09, W * 1.02); sp3.position.set(-L * .55, H * .1, 0); body.add(sp3); }
+    if (sp.k === 'angler') { const st = this.part(this.CYL, fM, 0, body); st.scale.set(.03, .6, .03); st.position.set(L * .7, H * 1.1, 0); st.rotation.z = -.6;
+      const bulb = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#fff6a0' })); bulb.scale.setScalar(.09); bulb.position.set(L * .95, H * 1.38, 0); body.add(bulb);
+      for (let i = 0; i < 4; i++) { const tth = this.part(this.CONE, this.M('#ffffff'), 0, body); tth.scale.set(.04, .1, .04); tth.position.set(L * .96, -H * .02, (i - 1.5) * .1); tth.rotation.z = Math.PI; } }
     if (sp.k === 'tang') { const r = this.part(this.SPH, dark, 0, body); r.scale.set(L * .6, H * .3, W * 1.03); r.position.set(-L * .05, H * .2, 0); }
     this.scene.add(g);
     return { g, body, tail };
@@ -4036,7 +4163,9 @@ Object.assign(R3, {
       const lp = this.line.geometry.attributes.position; lp.setXYZ(0, tip.x, tip.y, tip.z); lp.setXYZ(1, hk.x, hk.y + .3, 0); lp.needsUpdate = true;
       this.bobber.visible = hk.y < -.3; this.bobber.position.set(hk.x + (tip.x - hk.x) * (-hk.y / (tip.y - hk.y + .001)) * 0, (hk.st === 'reel' ? -.25 : 0) + Math.sin(t * 2) * .05, 0); this.bobber.position.x = hk.x;
       F.aR.rotation.z = 1.9 + (hk.st === 'reel' ? Math.sin(t * 18) * .25 : 0); F.aL.rotation.z = hk.st === 'reel' ? 1.6 + Math.cos(t * 18) * .35 : 1.0;
-      F.body.position.y = D.ended ? Math.abs(Math.sin(t * 6)) * .35 : 0; if (D.ended) { F.aL.rotation.z = 2.9; F.aR.rotation.z = 2.9; }
+      // 끝나면 낚시꾼은 아쉬워서 팔을 축 늘어뜨림
+      F.body.position.y = 0; if (D.ended) { F.aL.rotation.z = .25 + Math.sin(t * 2) * .05; F.aR.rotation.z = .25 - Math.sin(t * 2) * .05; }
+      if (this.sharkM) { const SH = S2.shark || S2.sharkFx, M = this.sharkM; M.g.visible = !!SH; if (SH) { M.g.position.set(SH.x, SH.y, -.3); M.g.rotation.y = SH.dir > 0 ? 0 : Math.PI; M.tail.rotation.y = Math.sin(t * 10) * .35; const o = SH.open || 0; M.top.position.y = .1 + o * .3; M.bot.position.y = -.1 - o * .3; M.inside.scale.set(.42, .12 + o * .34, .5); } }
       for (const w of this.weeds || []) w.rotation.z = Math.sin(t * .9 + w.userData.ph) * .15;
       if (this.bubbles) { const a = this.bubbles.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * (.8 + (i % 4) * .3); if (y > -.2) y = SEA.BOT; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(t * 2 + i) * .01); } a.needsUpdate = true; }
     }
@@ -4116,7 +4245,6 @@ Object.assign(R3, {
       } else if (style === 'rail') {
         if (h.fly) { ar = 2.7 + Math.sin(t * 20) * .3; al = 2.7 + Math.cos(t * 20) * .3; }
         else if (h.panic && h.alive) { ar = 2.5 + Math.sin(t * 15 + h.id) * .45; al = 2.5 + Math.cos(t * 15 + h.id) * .45; }
-        else if (h.hop) { ar = al = 2.3; }
         else if (Math.hypot(h.vx, h.vz) > .5) { ar = 1.0 + Math.sin(p) * .55; al = .9 - Math.sin(p) * .55; }
       } else if (style === 'tower') {
         const mv = Math.hypot(h.vx, h.vz) > .5 && !h.trip;
@@ -4263,27 +4391,39 @@ Object.assign(R3, {
   railCam(A, D, want, look, dt, t, showWin, byId, k) {
     const R = D.rail, XL = R.XL, zw = (R.K - 1) / 2 * RAIL.GAP, cx = R.cx || 0;
     if (this.intro) {
-      const a0 = this.intro.a0;
-      this.introCam(want, look, s => ({ p: [cx + Math.cos(a0 + s * 1.5) * (XL + 22), 20 - 6 * s, Math.sin(a0 + s * 1.5) * (XL + 22)], l: [cx, 0, 0] }),
-        s => ({ p: [cx - XL + 2 * XL * s, 2.8, zw + 5], l: [cx - XL + 2 * XL * s + 4, 1, 0] }));
+      // 인트로도 무리 앞쪽에서만 (친구들 정면)
+      this.introCam(want, look, s => ({ p: [cx + XL + 26 - 8 * s, 18 - 6 * s, Math.sin(-.9 + 1.8 * s) * (zw + 16)], l: [cx, 0, 0] }),
+        s => { const x = cx + XL - 2 * XL * s; return { p: [x + 6, 2.6, (zw + 2) * (1 - 2 * s) * .6], l: [x - 4, 1, 0] }; });
       return k;
     }
     if (A.replay) return k;
     const f = A.follow != null ? byId(A.follow) : null;
-    if (f && f.alpha > 0) { want.set(f.x - 4, f.y + 4, f.z + (f.z >= 0 ? 8 : -8)); look.set(f.x + 2, f.y + 1, f.z); return 1 - Math.exp(-dt * 3); }
-    if (showWin) { const W = D.winner, a = t * .4; want.set(W.x + Math.cos(a) * 7, 4, W.z + Math.sin(a) * 7); look.set(W.x, 1.2, W.z); return 1 - Math.exp(-dt * 3); }
+    if (f && f.alpha > 0) { want.set(f.x + 7, f.y + 3, f.z + (f.z >= 0 ? 2.5 : -2.5)); look.set(f.x - 1, f.y + 1, f.z); return 1 - Math.exp(-dt * 3); }
+    if (showWin) { const W = D.winner, a = Math.sin(t * .4) * .7; want.set(W.x + Math.cos(a) * 7, 4, W.z + Math.sin(a) * 7); look.set(W.x, 1.2, W.z); return 1 - Math.exp(-dt * 3); }
     const v = D.watch;
-    if (v && v.alpha > 0) { want.set(v.x - v.vx * .4, Math.max(9.5, v.y + 6), v.z + (v.vz >= 0 ? -1 : 1) * 11); look.set(v.x, Math.max(0, v.y), v.z); return 1 - Math.exp(-dt * 4); }
+    // 치이는 순간: 기차가 다가오면 카메라를 친구들 앞 선로 옆 낮은 곳에 세워 두고, 달려드는 기차 얼굴을 크게
     const fc = D.focus && D.pending && D.pending.alive ? D.focus : null;
-    if (fc) {
-      // 선로 옆 낮은 곳에서, 기차가 오는 쪽을 함께 보이게
-      const z0 = railZ(R, fc.lane), dir = R.lanes[fc.lane].dir || 1, ps = fc.ids.map(byId).filter(h => h && h.alive);
-      const px = ps.length ? ps.reduce((a, h) => a + h.x, 0) / ps.length : cx, sz = z0 >= 0 ? 1 : -1;
-      want.set(px + dir * 9, 3.6, z0 + sz * 8); look.set(px - dir * 5, 1, z0); return 1 - Math.exp(-dt * 3);
+    const grpA = (D.group || []).filter(h => h.alive && !h.fly), back = grpA.length ? grpA.reduce((a, h) => h.x < a.x ? h : a) : null;
+    const nearTr = fc && back ? R.trains.find(o => o.lane === fc.lane && back.x - o.x < 32) : null;
+    if ((v && v.alpha > 0) || nearTr) {
+      const lane = nearTr ? fc.lane : v.lane, z0 = railZ(R, lane), sz = z0 >= 0 ? 1 : -1;
+      const key = D.pending ? 'p' + D.pending.id : 'v' + v.id;
+      if (!D.hitCam || D.hitCam.key !== key) { const xs = [...grpA, D.pending, v].filter(Boolean).map(h => h.x); D.hitCam = { key, x: Math.max(...xs) + 7, z: z0 + sz * 2.9 }; }
+      const HC = D.hitCam, tr = R.trains.find(o => o.lane === lane && o.x < HC.x + 3);
+      want.set(HC.x, 1.25, HC.z);
+      if (tr && tr.x < HC.x - 1.5) look.set(tr.x + .5, 1.8, z0); else if (v) look.set(v.x, Math.max(1, v.y), v.z); else look.set(HC.x - 10, 1.5, z0);
+      return 1 - Math.exp(-dt * 9);
     }
-    // 전체 보기: 무리 앞쪽에서 달려오는 친구들의 정면을 비춤
+    D.hitCam = null;
+    if (fc) {
+      // 아무것도 모르고 달리는 친구들 바로 앞 낮은 곳에서, 뒤에서 오는 선로를 함께 보이게
+      const z0 = railZ(R, fc.lane), grp = (D.group || []).filter(h => h.alive), ps = grp.length ? grp : fc.ids.map(byId).filter(h => h && h.alive);
+      const px = ps.length ? Math.max(...ps.map(h => h.x)) : cx, sz = z0 >= 0 ? 1 : -1;
+      want.set(px + 6, 1.4, z0 + sz * 2.4); look.set(px - 14, 1.5, z0 - sz * .6); return 1 - Math.exp(-dt * 3);
+    }
+    // 전체 보기: 무리 앞쪽 낮은 곳에서 달려오는 친구들의 정면을 비춤
     const a = t * .07;
-    want.set(cx + XL + 9, 6.5 + R.K * .6, Math.sin(a) * (zw + 4)); look.set(cx + XL * .2, .8, 0); return 1 - Math.exp(-dt * 2.5);
+    want.set(cx + XL + 6, 2.4 + R.K * .3, Math.sin(a) * (zw + 2)); look.set(cx + XL * .1, 1.2, 0); return 1 - Math.exp(-dt * 2.5);
   },
   seaCam(A, D, want, look, dt, t, showWin, byId, k) {
     const W = D.RA, S2 = D.sea, hk = S2.hook;
@@ -4295,10 +4435,12 @@ Object.assign(R3, {
     if (A.replay) return k;
     const f = A.follow != null ? byId(A.follow) : null;
     if (f && f.alpha > 0 && !D.ended) { want.set(f.x, f.y + 1, 13); look.set(f.x, f.y, 0); return 1 - Math.exp(-dt * 3); }
-    if (D.ended) { want.set(S2.boatX + 3, 7, 24); look.set(S2.boatX + .5, 6.3, 0); return 1 - Math.exp(-dt * 2.5); }
+    if (D.ended) { const ws = (D.winners || []).filter(h => h.alive), mx = ws.length ? ws.reduce((a, h) => a + h.x, 0) / ws.length : 0, wx = D.winner ? D.winner.x * .6 + mx * .4 : mx; want.set(wx, 1.2, 15 + Math.min(10, ws.length * 1.5)); look.set(wx, .3, 0); return 1 - Math.exp(-dt * 2); }
+    const SH = S2.shark;
+    if (SH) { const sv = SH.v, mx = SH.st === 'in' ? (SH.x + sv.x) / 2 : SH.x - SH.dir * 3, my = SH.st === 'in' ? (SH.y + sv.y) / 2 : SH.y; want.set(mx, Math.min(-1, my + 1), 15); look.set(mx, my, 0); return 1 - Math.exp(-dt * 4); }
     const v = D.pending;
     if (v && v.caughtFly) { want.set(v.x + 1, Math.max(2, v.y + 1.5), 17); look.set(v.x, v.y, 0); return 1 - Math.exp(-dt * 4); }
-    if (v && (hk.st === 'wait' || hk.st === 'reel')) { want.set(hk.x, Math.min(-1, hk.y + .8), 13); look.set(hk.x, hk.y - .4, 0); return 1 - Math.exp(-dt * 3); }
+    if (v && (hk.st === 'wait' || hk.st === 'reel' || hk.st === 'sink')) { want.set(hk.x, Math.min(-1, hk.y + .8), 13); look.set(hk.x, hk.y - .4, 0); return 1 - Math.exp(-dt * 3); }
     const cx = Math.max(-W * .45, Math.min(W * .45, (S2.boatX + SEA.TIP * .6) * .8));
     want.set(cx, -3.5, 34); look.set(cx, -4.5, 0); return 1 - Math.exp(-dt * 1.8);
   },
@@ -4329,12 +4471,13 @@ Object.assign(R3, {
     const h = D.camH; out(h.s - .5, h.y, 9, 4.2, .8, -1.5); return 1 - Math.exp(-dt * 2.2);
   },
   drawRankSea(A) {
-    const D = A.duel, caught = D.kills.map(e => A.humans.find(h => h.id === e.victim)).filter(Boolean), left = A.humans.filter(h => h.alive && !h.caughtFly && !(D.ended && h === D.winner)).sort((p, q) => p.name.localeCompare(q.name, 'ko'));
-    const key = 'sea|' + caught.map(h => h.id).join(',') + '|' + left.map(h => h.id).join(',') + '|' + A.follow;
+    // 남은 물고기(이름순) 위에, 아래로는 잡히거나 먹힌 친구 (먼저 나간 친구가 꼴등)
+    const D = A.duel, n = A.humans.length, outs = D.kills.map((e, i) => ({ h: A.humans.find(h => h.id === e.victim), how: e.how, rank: n - i })).filter(o => o.h).reverse(), left = A.humans.filter(h => h.alive).sort((p, q) => p.name.localeCompare(q.name, 'ko'));
+    const key = 'sea|' + outs.map(o => o.h.id).join(',') + '|' + left.map(h => h.id).join(',') + '|' + A.follow;
     if (key === this.rankKey) return; this.rankKey = key;
-    this.rank.innerHTML = `<div class="ttl">잡힌 순서 · 이름을 누르면 따라가요</div>` +
-      caught.map((h, i) => `<button type="button" data-id="${h.id}" class="${A.follow === h.id ? 'on' : ''}"><span class="n">${i + 1}</span>${esc(h.name)} <span class="flag">잡힘</span></button>`).join('') +
+    this.rank.innerHTML = `<div class="ttl">남은 물고기 · 이름을 누르면 따라가요</div>` +
       left.map(h => `<button type="button" data-id="${h.id}" class="${A.follow === h.id ? 'on' : ''}"><span class="n">·</span>${esc(h.name)}</button>`).join('') +
+      outs.map(o => `<button type="button" data-id="${o.h.id}" class="${A.follow === o.h.id ? 'on' : ''}"><span class="n">${o.rank}</span>${esc(o.h.name)} <span class="flag">${o.how === 'shark' ? '상어' : '잡힘'}</span></button>`).join('') +
       (A.follow != null ? `<button type="button" data-id="all" class="all">전체 보기</button>` : '');
   },
   drawRankDuel(A) {
@@ -4363,15 +4506,13 @@ function startDuel(style = 'sword') {
   arena.onOut = () => {};
   arena.onDuelDone = () => { DU.done = true; buildResultsDuel(); $('#zNext').hidden = false; setStatus('경기 종료 · 결과 확정', 'done'); showResults(); };
   arena.shuffleDuel(); DU.keep = 1; arena.duel.keep = 1; $('#keepN').textContent = '1'; $('#keepBox').hidden = false;
-  if (style === 'sea') { DU.keep = -1; arena.duel.keep = -1; $('#keepBox').hidden = true; }
   $('#zNext').hidden = true; hideLT(); $('#startHud').hidden = false;
   MUSIC.use(style === 'sumo' ? 'music-sumo.mp3' : style === 'boxing' ? 'music-boxing.mp3' : style === 'lava' ? 'music-lava.mp3' : style === 'tower' ? 'music-tower.mp3' : style === 'rail' ? 'music-rail.mp3' : style === 'sea' ? 'music-sea.mp3' : 'music-duel.mp3'); MUSIC.reset();
   setStatus(`${DSTYLE[style].name} 준비 · ${DU.n}명`, null);
 }
 function buildResultsDuel() {
   const kc = {}; (arena.duel ? arena.duel.kills : []).forEach(k => { kc[k.killer] = (kc[k.killer] || 0) + 1; });
-  const sea = DU.style === 'sea';
-  R = { mode: 'duel', style: DU.style, keep: sea ? 1 : DU.keep || 1, at: new Date(), n: DU.n, rows: (sea ? DU.seq.slice() : DU.seq.slice().reverse()).map((p, i) => ({ rank: i + 1, name: p.name, kills: kc[p.id] || 0 })) };
+  R = { mode: 'duel', style: DU.style, keep: DU.keep || 1, at: new Date(), n: DU.n, rows: DU.seq.slice().reverse().map((p, i) => ({ rank: i + 1, name: p.name, kills: kc[p.id] || 0 })) };
 }
 
 // 시작 전 게임처럼 선수 몇 명을 하나씩 가까이 소개
@@ -4835,5 +4976,6 @@ try { bgResize(); } catch (e) {}
 requestAnimationFrame(t => { bgLast = t; bgFrame(t); });
 })();
 </script>
+
 </body>
 </html>

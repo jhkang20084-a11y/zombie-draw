@@ -72,7 +72,7 @@
 ## 기능
 
 - 이름 한 명씩 입력 / 여러 명 한 번에 붙여넣기 (줄바꿈·쉼표·띄어쓰기 구분, 중복 제거)
-- 맵별 배경음악(`music-forest.mp3`, `music-race.mp3`, `music-duel.mp3`, `music-sumo.mp3`, `music-boxing.mp3`, `music-lava.mp3`, `music-tower.mp3`)과 효과음, 낙하 비명(`scream.mp4`), 소리 켜기·끄기, 전체 화면
+- 맵별 배경음악(`music-forest.mp3`, `music-race.mp3`, `music-duel.mp3`, `music-sumo.mp3`, `music-boxing.mp3`, `music-lava.mp3`, `music-tower.mp3`, `music-rail.mp3`, `music-sea.mp3`)과 효과음, 낙하 비명(`scream.mp4`), 소리 켜기·끄기, 전체 화면
 - 결과 복사, 다시 뽑기, 홈화면으로
 - 저사양 기기용 간소화 연출, PC·태블릿 반응형
 

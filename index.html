@@ -650,7 +650,7 @@ const SFX = {
 /* ───────── 배경음악: 숲은 music-forest.mp3, 레이싱은 music-race.mp3 를 반복 재생 ───────── */
 const MUSIC = {
   el: null, on: false, src: 'music-forest.mp3',
-  vol(src) { return /duel|sumo|boxing|lava|tower/.test(src) ? .4 : .55; },
+  vol(src) { return /duel|sumo|boxing|lava|tower|rail|sea/.test(src) ? .4 : .55; },
   use(src) { this.src = src; if (this.el && !this.el.src.endsWith(src)) { this.el.pause(); this.el.src = src; } if (this.el) this.el.volume = this.vol(src); },
   audio() { if (!this.el) { this.el = new Audio(this.src); this.el.loop = true; this.el.preload = 'auto'; this.el.volume = this.vol(this.src); } return this.el; },
   start() { if (!SFX.on) return; this.on = true; const p = this.audio().play(); if (p && p.catch) p.catch(() => {}); },
@@ -4365,7 +4365,7 @@ function startDuel(style = 'sword') {
   arena.shuffleDuel(); DU.keep = 1; arena.duel.keep = 1; $('#keepN').textContent = '1'; $('#keepBox').hidden = false;
   if (style === 'sea') { DU.keep = -1; arena.duel.keep = -1; $('#keepBox').hidden = true; }
   $('#zNext').hidden = true; hideLT(); $('#startHud').hidden = false;
-  MUSIC.use(style === 'sumo' ? 'music-sumo.mp3' : style === 'boxing' ? 'music-boxing.mp3' : style === 'lava' ? 'music-lava.mp3' : style === 'tower' ? 'music-tower.mp3' : 'music-duel.mp3'); MUSIC.reset();
+  MUSIC.use(style === 'sumo' ? 'music-sumo.mp3' : style === 'boxing' ? 'music-boxing.mp3' : style === 'lava' ? 'music-lava.mp3' : style === 'tower' ? 'music-tower.mp3' : style === 'rail' ? 'music-rail.mp3' : style === 'sea' ? 'music-sea.mp3' : 'music-duel.mp3'); MUSIC.reset();
   setStatus(`${DSTYLE[style].name} 준비 · ${DU.n}명`, null);
 }
 function buildResultsDuel() {

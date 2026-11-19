@@ -3143,8 +3143,10 @@ Object.assign(arena, {
   towerStep(dt, alive) {
     const D = this.duel, L = D.RA, keep = D.keep || 1, W = D.worm;
     // 실제 탈락 간격을 보고 속도를 맞춤 (학생이 많아도 꼭대기에 먼저 다 도착하지 않게)
-    const lead = alive.length ? Math.max(...alive.map(h => h.s)) : 0, per = D.idx >= 2 && D.t > 25 ? Math.max(6, Math.min(22, D.t / (D.idx + .5))) : 11;
-    const remain = Math.max(1, (alive.length - keep) * per + 4), pace = Math.max(.3, Math.min(3, (L - 10 - lead) / remain));
+    const lead = alive.length ? Math.max(...alive.map(h => h.s)) : 0, per = D.idx >= 2 && D.t > 20 ? Math.max(4, Math.min(16, D.t / (D.idx + .5))) : 7;
+    const remain = Math.max(1, (alive.length - keep) * per + 4), pace = Math.max(1, Math.min(3, (L - 10 - lead) / remain));
+    // 무리 가운데 위치 (뒤처진 친구는 힘내서 따라붙고, 앞선 친구는 조금 늦춰 다 같이 붙어서 달림)
+    const ss = alive.filter(h => !h.doomed).map(h => h.s).sort((p, q) => p - q), mid = ss.length ? ss[Math.floor(ss.length / 2)] : 0;
     if (!D.ended) alive.filter(h => !h.doomed).sort((p, q) => q.s - p.s).forEach((h, i) => { h.capS = L - 1.5 - i * 1.1; });
     else alive.forEach(h => { h.capS = null; });
     for (const h of alive) { h.ps0x = h.x; h.ps0z = h.z; }
@@ -3156,20 +3158,21 @@ Object.assign(arena, {
         h.x += h.vx * dt; h.y += h.vy * dt; h.z += h.vz * dt; h.vy -= 18 * dt; h.flyRot += h.spin * dt;
         if (h.y <= 0) { h.y = 0; h.vx = h.vz = h.vy = 0; h.spin = 0; h.landed = true; }
         if (h.landed || h.y < h.fall0.y - 26) h.alpha = Math.max(0, h.alpha - dt * 1.6);
-        if (h.alpha <= 0 && D.pending === h) { D.pending = null; D.watch = null; const n = this.humans.filter(p => p.alive).length; D.killAt = D.t + (n <= 4 ? 2.6 : n > 12 ? 1.2 : 1.8); }
+        if (h.alpha <= 0 && D.pending === h) { D.pending = null; D.watch = null; const n = this.humans.filter(p => p.alive).length; D.killAt = D.t + (n <= 4 ? 1.6 : n > 12 ? .5 : .9); }
         continue;
       }
       if (!h.alive) continue;
       h.spdT -= dt; if (h.spdT <= 0) { h.spdT = rnd(6, 14); h.spd = Math.random(); }
-      let sp = pace * (.5 + h.spd);
-      if (h.s < lead - 45) sp *= 1.4;
-      if (h.ambushed && !(D.amb && D.amb.behind)) sp = Math.max(sp, 2.8);
+      // 다들 쉬지 않고 열심히 달림. 속도 차이는 조금씩만 (자리가 계속 뒤바뀜)
+      let sp = pace * (.85 + .3 * h.spd);
+      if (h.s < mid - 5) sp *= 1 + Math.min(.45, (mid - 5 - h.s) * .06); else if (h.s > mid + 5) sp *= Math.max(.75, 1 - (h.s - mid - 5) * .04);
+      if (h.ambushed && !(D.amb && D.amb.behind)) sp = Math.max(sp, 3.4);
       // 느리게 가야 할 때는 미끄러지듯 가지 않고 걷다가 잠깐 서기를 반복 (다리가 항상 움직이며 걸음)
-      if (h.st === 'idle' && !h.doomed && !h.ambushed && sp < 1.1) { const duty = Math.max(.06, sp / 1.1); h.gt = (h.gt || 0) - dt; if (h.gt <= 0) { h.gOn = !h.gOn; h.gt = h.gOn ? rnd(1.5, 3) : Math.min(5, rnd(1.5, 3) * (1 - duty) / duty); } sp = h.gOn ? 1.1 : 0; }
       if (h.st === 'win') sp = h.s < h.winS ? 2.6 : 0;
       else if (h.doomed && D.method === 'worm') {
         const others = alive.filter(o => o !== h), mn = others.length ? Math.min(...others.map(o => o.s)) : h.s;
-        if (h.s < mn - 1.2) h.trip = true; sp = h.trip ? .9 : 0;
+        // 지렁이에게 잡힐 친구도 계속 달리지만 아주 조금 느려 무리 맨 뒤로 처짐
+        if (h.s < mn - .5) h.trip = true; sp = h.trip ? Math.max(.6, pace * .7) : Math.max(.4, pace * .3);
       } else if (h.st === 'slapGo') {
         // 뒤에 있던 친구는 먼저 앞질러 뛰어가고, 그다음엔 천천히 걸어가다가 상대가 가까워지면 멈춰서 기다림
         const v = h.prey, gap = v ? h.s - v.s : 99;
@@ -3179,7 +3182,7 @@ Object.assign(arena, {
           else {
           if (h.dash && gap > 7) h.dash = false;
           sp = h.dash ? Math.max(pace * 2.5, 6.5) : gap > 13 ? pace * .25 : pace * .7; h.laneT = 1.2;
-          if (!h.dash && gap < rnd(4.5, 6)) { h.st = 'ambush'; h.fill = true; h.ambT = D.t; }
+          if (!h.dash && gap < rnd(3.5, 4.5)) { h.st = 'ambush'; h.fill = true; h.ambT = D.t; }
           }
           if (h.st === 'slapGo' && D.t - h.ambT > 16) { h.st = 'idle'; h.prey = null; h.dash = false; h.behind = false; v.ambushed = false; D.amb = null; if (v === D.pending) D.reAmb = v; }
         }
@@ -3191,17 +3194,19 @@ Object.assign(arena, {
       } else if (h.st === 'slap') sp = 0;
       h.lie = 0;
       // 지뢰를 밟을 친구는 지뢰 쪽으로 걸어감
-      if (h.doomed && D.method === 'mine' && h.mine) { h.laneT = h.mine.lane; sp = Math.max(sp, 1.6); }
+      if (h.doomed && D.method === 'mine' && h.mine) { h.laneT = h.mine.lane; sp = Math.max(sp, 2.6); }
       // 줄을 서듯 위로 갈수록 간격을 두고 멈춤 (꼭대기에 다 몰리지 않게)
       const cap = h.capS == null || h.st === 'slapGo' || h.st === 'ambush' || h.st === 'slap' || h.ambushed || h.doomed ? L - .8 : h.capS;
       h.s = Math.min(Math.max(h.s, cap), h.s + sp * dt);
-      if (Math.random() < dt * .25 && h.st === 'idle' && !h.doomed && h.gOn !== false) h.laneT = rnd(-1.2, 1.2);
+      if (Math.random() < dt * .25 && h.st === 'idle' && !h.doomed ) h.laneT = rnd(-1.2, 1.2);
       // 지뢰 피해 가기 (밟을 친구만 빼고)
       if (D.mines && !(h.doomed && D.method === 'mine')) for (const m of D.mines) if (m.live && m.s > h.s - .4 && m.s < h.s + 3 && Math.abs(h.laneT - m.lane) < .85) { const side = h.lane >= m.lane ? 1 : -1, nt = m.lane + side * .95; h.laneT = Math.abs(nt) <= 1.3 ? nt : m.lane - side * .95; }
-      h.lane += (h.laneT - h.lane) * Math.min(1, dt * 2.5);
+      const dodging = h.dodgeT != null && D.t - h.dodgeT < .55;
+      if (dodging) h.s = Math.min(L - .8, h.s + 3.2 * dt);
+      h.lane += (h.laneT - h.lane) * Math.min(1, dt * (dodging ? 10 : 2.5));
       if (h.fill) { h.ult = Math.min(1, h.ult + dt * 1.2); if (h.ult >= 1) h.fill = false; }
       else if (h.st !== 'win') h.ult = Math.min(1, h.ult + dt * .045);
-      if (h.jumpT != null) { const q = (D.t - h.jumpT) / .55; h.jy = q >= 1 ? 0 : Math.sin(q * Math.PI) * 1.3; if (q >= 1) h.jumpT = null; } else h.jy = 0;
+      if (h.jumpT != null) { const q = (D.t - h.jumpT) / .55; h.jy = q >= 1 ? 0 : Math.sin(q * Math.PI) * (h.dodgeT != null && D.t - h.dodgeT < .6 ? 1.9 : 1.3); if (q >= 1) h.jumpT = null; } else h.jy = 0;
       const p = towerPos(h.s, h.lane); h.vx = p.tx * sp; h.vz = p.tz * sp;
     }
     const walk = alive.filter(h => !h.fly);
@@ -3224,18 +3229,20 @@ Object.assign(arena, {
     }
     // 지렁이: 맨 뒤 친구 바로 뒤까지만 쫓아옴 (잡아먹을 친구가 맨 뒤로 처지면 그때 잡음)
     const others = alive.filter(h => h !== prey), mn = others.length ? Math.min(...others.map(h => h.s)) : lead;
-    let cap = mn - 5.5; if (prey && prey.s < mn - .4) cap = prey.s - .3;
+    let cap = mn - (prey ? 2 : 3.2); if (prey && prey.trip) cap = prey.s - .3;
     if (D.ended) W.s -= dt * 1.5;
-    else { const v = prey ? (prey.s - W.s < 6 ? 2.8 : 7) : W.s < cap - 5 ? 8 : Math.max(1.4, pace * 1.3); W.s = Math.max(cap - 30, Math.min(W.s + v * dt, cap)); }
+    else { const v = prey ? (prey.trip ? pace + 3 : prey.s - W.s < 6 ? pace * 1.2 : 8) : W.s < cap - 5 ? 8 : pace * 1.3; W.s = Math.max(cap - 30, Math.min(W.s + v * dt, cap)); }
     // 지렁이가 가까이 오면 두근두근 심장 소리 (가까울수록 빨라짐)
     if (!D.ended && alive.length) {
       const last = alive.reduce((a, h) => h.s < a.s ? h : a), gap = last.s - W.s;
-      if (gap < 6 && D.t >= (D.heartT || 0)) { this.kSfx(last, 'heart'); D.heartT = D.t + .32 + Math.max(0, gap) * .15; }
+      // 지렁이가 늘 무리 바로 뒤에 붙어 있으므로, 잡을 차례가 왔을 때 더 바짝 다가오면 심장 소리
+      const hg = prey ? prey.s - W.s : gap;
+      if (hg < (prey ? 6 : 2.6) && D.t >= (D.heartT || 0)) { this.kSfx(prey || last, 'heart'); D.heartT = D.t + .32 + Math.max(0, hg) * .15; }
     }
     if (prey && W.s >= prey.s - 2.3) {
       W.chomp = D.t; prey.shat = true; prey.alpha = 0; prey.trip = false; this.kSfx(prey, 'shatter'); this.shake(7);
       this.wsplat(prey.x, prey.y + 1, prey.z, ['#ffffff', '#e9e0c9', '#d9d2c4'], 26, 4);
-      this.towerOut(prey, null, 'worm'); D.pendClear = D.t + 1.3;
+      this.towerOut(prey, null, 'worm'); D.pendClear = D.t + .9;
     }
     // 지뢰: 밟는 순간 펑! 몸이 산산조각 나서 날아감
     const mv = D.pending && D.method === 'mine' && D.pending.alive && D.pending.mine ? D.pending : null;
@@ -3243,9 +3250,9 @@ Object.assign(arena, {
       const m = mv.mine; m.live = false; m.boomT = D.t; mv.shat = true; mv.boom = true; mv.alpha = 0; mv.mine = null;
       this.kSfx(mv, 'boom'); this.shake(14);
       this.wsplat(mv.x, mv.y + .6, mv.z, ['#fff3b0', '#ffb347', '#ff6a3d', '#5b5b5b'], 40, 8);
-      this.towerOut(mv, null, 'mine'); D.pendClear = D.t + 1.6;
+      this.towerOut(mv, null, 'mine'); D.pendClear = D.t + 1.1;
     }
-    if (D.pendClear && D.t >= D.pendClear) { D.pendClear = 0; D.pending = null; const n = alive.length; D.killAt = D.t + (n <= 4 ? 2.6 : n > 12 ? 1.2 : 1.8); }
+    if (D.pendClear && D.t >= D.pendClear) { D.pendClear = 0; D.pending = null; const n = alive.length; D.killAt = D.t + (n <= 4 ? 1.6 : n > 12 ? .5 : .9); }
     // 손바닥 따귀 (뛰어내리며 침)
     const E = D.slapEv;
     if (E) {
@@ -3257,9 +3264,13 @@ Object.assign(arena, {
         a.y = a.leap.y0 + (dst.y - a.leap.y0) * e2 + Math.sin(k * Math.PI) * 1.6; a.ang = Math.atan2(v.z - a.z, v.x - a.x);
         if (k >= 1) { a.s = v.s - .8; a.lane = a.laneT = Math.max(-1.2, Math.min(1.2, v.lane + (v.lane > 0 ? -.7 : .7))); a.leap = null; a.high = false; this.shake(4); this.wsplat(a.x, a.y + .2, a.z, ['#ffffff', '#d9dde2'], 12, 3); }
       }
+      if (E.miss && !E.dodge && q >= .32) {
+        E.dodge = true; const away = v.lane >= a.lane ? 1 : -1, tl = v.lane + away * 1.15;
+        v.laneT = Math.abs(tl) <= 1.25 ? tl : v.lane - away * 1.15; v.dodgeT = D.t; v.jumpT = D.t; this.kSfx(v, 'jump');
+      }
       if (!E.hit && q >= .6) {
         E.hit = true; a.ult = 0; v.ambushed = false;
-        if (E.miss) { v.jumpT = D.t - .1; this.kSfx(a, 'jab'); this.wsplat(v.x, v.y + 1.4, v.z, ['#ffffff', '#cfe9ff'], 10, 2.5); }
+        if (E.miss) { this.kSfx(a, 'whoosh'); setTimeout(() => { try { this.kSfx(v, 'phew'); } catch (e) {} }, 350); }
         else {
           const r = Math.hypot(v.x, v.z) || 1, ox = v.x / r, oz = v.z / r, p = towerPos(v.s, v.lane);
           v.fly = true; v.st = 'fly'; v.vx = ox * 8.5 + p.tx * 1.5; v.vz = oz * 8.5 + p.tz * 1.5; v.vy = 7; v.flyRot = 0; v.spin = rnd(6, 9) * (Math.random() < .5 ? -1 : 1);
@@ -3274,7 +3285,7 @@ Object.assign(arena, {
     // 손바닥 친구를 정해 높은 곳에서 기다리게 함
     const ambush = (v, miss) => {
       // 꼭대기 가까이에서는 앞질러 기다릴 수 없으니 뒤에서 달려와 때림
-      const want = v.s + 9, top = v.s > L - 22;
+      const want = v.s + 6, top = v.s > L - 22;
       const cand = top ? alive.filter(o => o !== v && o.st === 'idle' && !o.doomed && o.s < v.s) : alive.filter(o => o !== v && o.st === 'idle' && !o.doomed && o.s > v.s - 25 && o.s < want + 25);
       if (!cand.length && !miss) cand.push(...alive.filter(o => o !== v && o.st === 'idle' && !o.doomed));
       if (!cand.length) return false;
@@ -3284,8 +3295,9 @@ Object.assign(arena, {
     };
     // 가끔은 기다렸다 쳐도 상대가 피함 (누가 떨어질지 미리 알 수 없게)
     if (!D.amb && !D.slapEv && !D.pending && D.killAt - D.t > 1.5 && D.t >= (D.decoyT || 12) && alive.length > keep + 1) {
-      D.decoyT = D.t + rnd(14, 22);
-      const v = shuffle(alive.filter(o => !o.doomed && o.st === 'idle'))[0]; if (v) ambush(v, true);
+      D.decoyT = D.t + rnd(22, 32);
+      const soon = new Set(D.seq.slice(D.idx, D.idx + 3).map(p => p.id));
+      const v = shuffle(alive.filter(o => !o.doomed && o.st === 'idle' && !soon.has(o.id)))[0]; if (v) ambush(v, true);
     }
     if (D.reAmb) { const v = D.reAmb; D.reAmb = null; if (v.alive && !ambush(v, false)) { const os = alive.filter(o => o !== v); if (os.length && v.s - Math.min(...os.map(o => o.s)) < 8) D.method = 'worm'; else { v.doomed = false; v.ambushed = false; D.pending = null; D.killAt = D.t + .6; } } }
     // 감독: 정해진 순서대로 다음 탈락자. 맨 뒤쪽이면 대개 지렁이, 아니면 높은 곳에서 기다린 손바닥
@@ -3295,10 +3307,10 @@ Object.assign(arena, {
         const os = alive.filter(o => o !== v), mn2 = os.length ? Math.min(...os.map(o => o.s)) : v.s;
         v.doomed = true; D.pending = v; D.pendT = D.t;
         // 지렁이는 맨 뒤쪽 친구만. 앞쪽 친구는 언제나 손바닥 (못 찾으면 잠시 뒤 다시)
-        const rear = v.s - mn2 < 8 && v.s < L - 22, worm = rear && Math.random() < .75;
+        const rear = v.s - mn2 < 7 && v.s < L - 22, worm = rear && Math.random() < .7;
         // 지뢰 차례: 앞쪽 지뢰를 밟게 함 (알맞은 지뢰가 없으면 앞에 하나 묻어 둠)
         let mine = null;
-        if (D.mines && D.mineIdx && D.mineIdx.has(D.idx)) { mine = D.mines.find(m => m.live && m.s > v.s + 4 && m.s < v.s + 18); if (!mine && v.s + 9 < L - 3) { mine = { s: v.s + rnd(7, 10), lane: [-.85, 0, .85][Math.floor(Math.random() * 3)], live: true }; D.mines.push(mine); } }
+        if (D.mines && D.mineIdx && D.mineIdx.has(D.idx)) { mine = D.mines.find(m => m.live && m.s > v.s + 3 && m.s < v.s + 10); if (!mine && v.s + 7 < L - 3) { mine = { s: v.s + rnd(5, 7), lane: [-.85, 0, .85][Math.floor(Math.random() * 3)], live: true }; D.mines.push(mine); } }
         if (mine) { D.method = 'mine'; v.mine = mine; }
         else if (worm) D.method = 'worm'; else if (ambush(v, false)) D.method = 'slap'; else if (rear) D.method = 'worm'; else { v.doomed = false; D.pending = null; D.killAt = D.t + .6; }
       }

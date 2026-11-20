@@ -2115,22 +2115,36 @@ const LANES = [0, .25, .5, .75, 1], KS = 1.3; // 차선 위치, 카트 크기 �
 const laneOf = d => Math.max(0, Math.min(4, Math.round(d * 4)));
 let RC = null;
 const WEATHER = {
-  kind: 'clear', night: false, temp: null, ready: false,
+  kind: 'clear', night: false, temp: null, ready: false, place: '', lat: 37.57, lon: 126.98,
   label() { return ({ clear: '맑음', cloudy: '흐림', fog: '안개', rain: '비', snow: '눈', storm: '뇌우' })[this.kind] + (this.night ? ' · 밤' : ''); },
   icon() { return ({ clear: this.night ? '🌙' : '☀️', cloudy: '☁️', fog: '🌫️', rain: '🌧️', snow: '❄️', storm: '⛈️' })[this.kind]; },
+  // 지금 있는 곳의 날씨: 위치(허용 시)를 넉넉히 기다리고, 못 찾으면 서울. 15분마다 다시 확인
   async load() {
+    const pos = await new Promise(res => { if (!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p => res(p.coords), () => res(null), { timeout: 20000, maximumAge: 600000 }); });
+    if (pos) { this.lat = pos.latitude; this.lon = pos.longitude; }
+    const lat = this.lat.toFixed(1), lon = this.lon.toFixed(1);
+    this.place = pos ? '' : '서울';
+    if (pos) try {
+      const g = await (await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=ko')).json();
+      this.place = g.city || g.locality || g.principalSubdivision || '';
+    } catch (e) {}
+    await this.refresh();
+    if (!this.timer) this.timer = setInterval(() => this.refresh(), 15 * 60 * 1000);
+  },
+  async refresh() {
     try {
-      const pos = await new Promise(res => { if (!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p => res(p.coords), () => res(null), { timeout: 7000, maximumAge: 1800000 }); });
-      const lat = pos ? pos.latitude : 37.57, lon = pos ? pos.longitude : 126.98;
-      const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat.toFixed(1) + '&longitude=' + lon.toFixed(1) + '&current=temperature_2m,weather_code,is_day&timezone=auto');
+      const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + this.lat.toFixed(1) + '&longitude=' + this.lon.toFixed(1) + '&current=temperature_2m,weather_code,is_day,precipitation,snowfall,cloud_cover&timezone=auto');
       const c = (await r.json()).current, w = c.weather_code;
-      this.kind = w >= 95 ? 'storm' : (w >= 71 && w <= 77) || w === 85 || w === 86 ? 'snow' : (w >= 51 && w <= 67) || (w >= 80 && w <= 82) ? 'rain' : w === 45 || w === 48 ? 'fog' : w >= 2 ? 'cloudy' : 'clear';
-      this.night = c.is_day === 0; this.temp = Math.round(c.temperature_2m); this.ready = true;
-    } catch (e) { this.ready = false; }
+      let k = w >= 95 ? 'storm' : (w >= 71 && w <= 77) || w === 85 || w === 86 ? 'snow' : (w >= 51 && w <= 67) || (w >= 80 && w <= 82) ? 'rain' : w === 45 || w === 48 ? 'fog' : w >= 2 ? 'cloudy' : 'clear';
+      // 날씨 코드는 맑음인데 비·눈이 오고 있거나 구름이 많으면 실제에 가깝게 바꿈
+      if ((k === 'clear' || k === 'cloudy') && c.precipitation > 0) k = c.snowfall > 0 || c.temperature_2m <= 0 ? 'snow' : 'rain';
+      else if (k === 'clear' && c.cloud_cover >= 60) k = 'cloudy';
+      this.kind = k; this.night = c.is_day === 0; this.temp = Math.round(c.temperature_2m); this.ready = true;
+    } catch (e) { if (!this.ready) this.ready = false; }
     R3.curMode = null; showWeather();
   }
 };
-function showWeather() { const b = $('#wxBadge'); if (!b) return; b.hidden = !WEATHER.ready; if (WEATHER.ready) b.textContent = WEATHER.icon() + ' ' + WEATHER.label() + (WEATHER.temp != null ? ' · ' + WEATHER.temp + '°C' : ''); }
+function showWeather() { const b = $('#wxBadge'); if (!b) return; b.hidden = !WEATHER.ready; if (WEATHER.ready) b.textContent = WEATHER.icon() + ' ' + (WEATHER.place ? WEATHER.place + ' ' : '') + WEATHER.label() + (WEATHER.temp != null ? ' · ' + WEATHER.temp + '°C' : ''); }
 setTimeout(() => WEATHER.load(), 600);
 Object.assign(arena, {
   setupRace(people) {

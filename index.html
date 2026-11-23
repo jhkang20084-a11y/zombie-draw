@@ -2869,7 +2869,7 @@ function hwyGen(H, upto) {
     const r = H.rows.length - H.off;
     let t = 'grass';
     if (r > 4) {
-      if (!H.run || H.run.n <= 0) { const prev = H.run ? H.run.t : 'grass', p = Math.random(); const nt = prev !== 'grass' ? 'grass' : p < .58 ? 'road' : 'river'; H.run = { t: nt, n: nt === 'grass' ? 1 + Math.floor(Math.random() * 2.2) : nt === 'road' ? 1 + Math.floor(Math.random() * 2.7) : 1 + Math.floor(Math.random() * 1.6) }; }
+      if (!H.run || H.run.n <= 0) { const prev = H.run ? H.run.t : 'grass', p = Math.random(); const nt = prev !== 'grass' ? 'grass' : p < .58 ? 'road' : 'river'; H.run = { t: nt, n: nt === 'grass' ? 1 + Math.floor(Math.random() * 2.2) : nt === 'road' ? 1 + Math.floor(Math.random() * 1.9) : 1 + Math.floor(Math.random() * 1.6) }; }
       t = H.run.t; H.run.n--;
     }
     const R = { t, r };
@@ -3052,7 +3052,7 @@ Object.assign(arena, {
     return false;
   },
   hwyPath(h, maxR, minR) {
-    const H = this.duel.hwy, key = (r, c) => r * 1000 + c, seen = new Set([key(h.r, h.c)]), q = [[h.r, h.c, 0, null]], DIRS = [[1, 0], [0, -1], [0, 1], [-1, 0]];
+    const H = this.duel.hwy, key = (r, c) => r * 1000 + c, seen = new Set([key(h.r, h.c)]), q = [[h.r, h.c, 0, null]], DIRS = [[1, 0], [0, -1], [0, 1]]; // 뒤로는 가지 않음 (막히면 옆으로 돌아감)
     let best = null, qi = 0;
     // 왼쪽·오른쪽 중 어느 쪽을 먼저 볼지는 동물마다 정해 둠 (좌우로 왔다 갔다 하지 않게)
     if (h.id % 2) { DIRS[1] = [0, 1]; DIRS[2] = [0, -1]; }
@@ -3105,7 +3105,7 @@ Object.assign(arena, {
       if (v && v.alive) { v.doomed = true; D.pending = v; D.pendT = D.t; v.how = v.r - edge <= 3 && Math.random() < .45 ? 'slow' : 'car'; v.frozen = false; v.killer = null; }
     }
     const pend = D.pending;
-    if (pend && pend.how === 'car' && D.t - D.pendT > 10 && !pend.killer) pend.how = 'slow';
+    if (pend && pend.how === 'car' && D.t - D.pendT > 10 && !pend.killer && pend.r - edge <= 3) pend.how = 'slow';
     for (const h of this.humans) {
       if (h.fall) { const q = D.t - h.fall.t0; h.y = -9 * q * q; h.x += dt * .4; if (q > 1.2) h.alpha = Math.max(0, h.alpha - dt * 2); if (h.alpha <= 0 && D.pending === h) this.hwyNext(alive); continue; }
       if (h.flat) { if (D.t - h.flatT > 1.4 && D.pending === h) this.hwyNext(alive); const FR = hwyRow(H, h.r); if (FR && FR.fallT != null) { h.y = -6 * (D.t - FR.fallT) ** 2; if (h.y < -40) h.alpha = 0; } continue; }
@@ -3136,7 +3136,7 @@ Object.assign(arena, {
       if (h === pend && h.how === 'slow') {
         // 너무 느림: 두리번거리며 옆으로·뒤로 갈팡질팡
         h.nextT = D.t + rnd(.5, 1.1);
-        const opts = [[0, -1], [0, 1], [-1, 0]].map(([dr, dc]) => [h.r + dr, h.c + dc]).filter(([r, c]) => hwyWalk(H, r, c) && !H.occ.has(r * 1000 + c));
+        const opts = [[0, -1], [0, 1]].map(([dr, dc]) => [h.r + dr, h.c + dc]).filter(([r, c]) => hwyWalk(H, r, c) && !H.occ.has(r * 1000 + c));
         if (opts.length && Math.random() < .55) { const [r, c] = opts[Math.floor(Math.random() * opts.length)]; this.hwyHopTo(h, r, c, .32); } else h.ang += rnd(-1.2, 1.2);
         continue;
       }
@@ -3148,10 +3148,16 @@ Object.assign(arena, {
           if (!h.killer && !this.humans.some(o => o !== h && o.alive && ((o.cross && o.cross.some(q => q[0] === h.r)) || Math.round(o.x / C) === h.r)) && !H.cars.some(o => o.r === h.r && Math.abs(o.z + R.dir * (H.W * C / 2 + 3)) < 4.5)) { const half = H.W * C / 2, spd = R.spd; const car = { id: ++H.cid, r: h.r, dir: R.dir, spd, z: -R.dir * (half + 3), len: 1.9, truck: Math.random() < .3, col: ['#e8473b', '#3d7bd9', '#f6c445', '#9b6bd6'][Math.floor(Math.random() * 4)], killer: true }; H.cars.push(car); h.killer = car; }
           continue;
         }
-        // 가장 가까운 도로 칸으로
+        // 도로 바로 앞: 차가 막 지나가는 순간에 뛰어듦
+        const NR = hwyRow(H, h.r + 1);
+        if (NR && NR.t === 'road') {
+          if (this.hwyCarWin(H, h.r + 1, h.c, .22, .6)) { this.hwyHopTo(h, h.r + 1, h.c, .26); h.nextT = D.t + .3; continue; }
+          if (D.t - D.pendT < 7) { h.nextT = D.t + .08; continue; }
+        }
+        // 가장 가까운 도로 칸 바로 앞까지
         let bestRoad = null;
         for (let r = h.r; r <= h.r + 6 && !bestRoad; r++) { const RR = hwyRow(H, r); if (RR && RR.t === 'road') bestRoad = r; }
-        const best = this.hwyPath(h, bestRoad != null ? bestRoad : maxRow, edge + 1);
+        const best = this.hwyPath(h, bestRoad != null ? (bestRoad > h.r + 1 ? bestRoad - 1 : bestRoad) : maxRow, edge + 1);
         if (best && best.first) this.hwyHopTo(h, best.first[0], best.first[1]);
         h.nextT = D.t + .26 + rnd(.1, .35);
         continue;
@@ -3159,7 +3165,7 @@ Object.assign(arena, {
       // 보통: 도로는 차가 오는 때를 미리 계산해서 건널 수 있을 때만 끝까지 한 번에 건넘 (도로 위에서 멈추지 않고, 차를 뛰어넘지 않음)
       if (h.cross) { const nx = h.cross.shift(); this.hwyHopTo(h, nx[0], nx[1], .26); h.nextT = D.t + HWY.STEP; if (!h.cross.length) h.cross = null; continue; }
       const urgent = room <= 2, lim = Math.min(maxRow, h.r + 4);
-      if (hwyRow(H, h.r).t === 'road') { const pl = this.hwyCross(h, h.r, h.c, 1) || this.hwyCross(h, h.r, h.c, -1); if (pl) h.cross = pl; h.nextT = D.t + .05; continue; }
+      if (hwyRow(H, h.r).t === 'road') { const pl = this.hwyCross(h, h.r, h.c, 1); if (pl) h.cross = pl; h.nextT = D.t + .05; continue; }
       const side = () => { const c = h.c + (Math.random() < .5 ? -1 : 1); if (hwyWalk(H, h.r, c) && !H.occ.has(h.r * 1000 + c)) this.hwyHopTo(h, h.r, c); };
       if (h.r >= maxRow - (h.id % 3)) { h.nextT = D.t + rnd(.4, .9); if (Math.random() < .3) side(); continue; }
       // 나무·바위에 갇혀 오래 못 나아가면 앞의 낮은 장애물을 폴짝 넘음 (도로는 넘지 않음)

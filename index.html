@@ -2959,10 +2959,10 @@ Object.assign(arena, {
     const hs = alive.slice().sort((p, q) => Math.atan2(p.z, p.x) - Math.atan2(q.z, q.x)), a0 = Math.atan2(hs[0].z, hs[0].x);
     hs.forEach((h, i) => { const a = a0 + i / n * Math.PI * 2; h.tx = Math.cos(a) * R; h.tz = Math.sin(a) * R; h.face = a + Math.PI; });
   },
-  westShoot(a, v, kill) {
+  westShoot(a, v, kill, fallOnly) {
     const D = this.duel;
-    a.flashT = D.t; (D.shots || (D.shots = [])).push({ a, v, t: D.t });
-    this.kSfx(a, 'gun'); this.wsplat(a.x + Math.cos(a.ang) * .9, 1.2, a.z + Math.sin(a.ang) * .9, ['#fff3b0', '#ffd24d', '#ffffff'], 8, 3);
+    if (!fallOnly) { a.flashT = D.t; (D.shots || (D.shots = [])).push({ a, v, t: D.t }); this.kSfx(a, 'gun'); }
+    if (!fallOnly) this.wsplat(a.x + Math.cos(a.ang) * .9, 1.2, a.z + Math.sin(a.ang) * .9, ['#fff3b0', '#ffd24d', '#ffffff'], 8, 3);
     if (!kill) return;
     v.alive = false; v.doomed = false; v.st = 'ko'; v.aimAt = null; v.hitT = D.t; v.koT = D.t; D.idx++; a.kills++;
     const dx = v.x - a.x, dz = v.z - a.z, l = Math.hypot(dx, dz) || 1; v.kx = dx / l; v.kz = dz / l;
@@ -2992,7 +2992,7 @@ Object.assign(arena, {
       if (alive.length === 2 && keep === 1) {
         const lo = byId(D.seq[D.idx].id), wi = alive.find(h => h !== lo);
         W.ph = 'fwalk'; W.t0 = D.t; W.A = alive[0]; W.B = alive[1]; W.lo = lo; W.wi = wi; D.pending = lo; D.cine = true;
-        W.cx = -(D.RA + 13); W.A.tx = W.cx; W.A.tz = -5; W.A.face = Math.PI / 2; W.B.tx = W.cx; W.B.tz = 5; W.B.face = -Math.PI / 2; W.A.wsp = W.B.wsp = 3.2;
+        W.cx = -(D.RA + 13); W.A.tx = W.cx; W.A.tz = -5; W.A.face = Math.PI / 2; W.B.tx = W.cx; W.B.tz = 5; W.B.face = -Math.PI / 2; W.A.wsp = W.B.wsp = 4.5;
         this.wrap.classList.add('slowmo');
       } else {
         const k = Math.max(1, Math.min(3, alive.length - keep, Math.floor(alive.length / 2)));
@@ -3009,15 +3009,19 @@ Object.assign(arena, {
     }
     // 마지막 두 명: 걸어가 마주 섬 → 각자 얼굴 → 초 세기 → 동시에 탕 → 한 명만 쓰러짐 → 석양으로 걸어감
     const A = W.A, B = W.B;
-    if (W.ph === 'fwalk' && ((!A.moving && !B.moving) || D.t - W.t0 > 4)) { W.ph = 'faceA'; W.t0 = D.t; SFX.heart(); }
+    if (W.ph === 'fwalk' && ((!A.moving && !B.moving) || D.t - W.t0 > 8)) { [A, B].forEach(h => { h.x = h.tx; h.z = h.tz; h.ang = h.face; h.moving = false; }); W.ph = 'faceA'; W.t0 = D.t; SFX.heart(); }
     if (W.ph === 'faceA' && D.t - W.t0 > 1.9) { W.ph = 'faceB'; W.t0 = D.t; SFX.heart(); }
-    if (W.ph === 'faceB' && D.t - W.t0 > 1.9) { W.ph = 'count'; W.t0 = D.t; W.n = 0; W.tw = D.t; }
+    if (W.ph === 'faceB' && D.t - W.t0 > 1.9) { W.ph = 'gunA'; W.t0 = D.t; }
+    // 손에 든 총을 가까이
+    if (W.ph === 'gunA' && D.t - W.t0 > 1.6) { W.ph = 'gunB'; W.t0 = D.t; }
+    if (W.ph === 'gunB' && D.t - W.t0 > 1.6) { W.ph = 'count'; W.t0 = D.t; W.n = -1; W.tw = D.t; }
     if (W.ph === 'count') {
-      const n = Math.floor((D.t - W.t0) / 1.1);
-      if (n !== W.n || D.t - W.t0 < .02) { W.n = n; if (n < 3) { overlay('cd', `<div class="ov-name slam">${3 - n}</div>`); SFX.count(3 - n); } }
+      const n = Math.floor((D.t - W.t0) / 1.8);
+      if (n !== W.n) { W.n = n; if (n < 3) { overlay('cd', `<div class="ov-name slam">${3 - n}</div>`); SFX.count(3 - n); } }
       if (n >= 3) { hideOverlay(); A.aimAt = B; B.aimAt = A; W.ph = 'draw'; W.t0 = D.t; }
     }
-    if (W.ph === 'draw' && D.t - W.t0 > .35) { this.westShoot(W.wi, W.lo, true); this.westShoot(W.lo, W.wi, false); W.ph = 'after2'; W.t0 = D.t; }
+    if (W.ph === 'draw' && D.t - W.t0 > .35) { this.westShoot(W.wi, W.lo, false); this.westShoot(W.lo, W.wi, false); W.ph = 'hold'; W.t0 = D.t; }
+    if (W.ph === 'hold' && D.t - W.t0 > 3) { this.westShoot(W.wi, W.lo, true, true); SFX.bonk(); W.ph = 'after2'; W.t0 = D.t; }
     if (W.ph === 'after2' && D.t - W.t0 > 2.2) { W.wi.aimAt = null; W.wi.face = Math.PI; W.wi.tx = W.cx - 70; W.wi.tz = W.wi.z; W.wi.wsp = 1.25; W.ph = 'sunset'; W.t0 = D.t; }
     if (W.ph === 'sunset' && D.t - W.t0 > 5.5 && D.pending) { D.pending = null; D.cine = false; this.wrap.classList.remove('slowmo'); }
   },
@@ -4856,7 +4860,7 @@ Object.assign(R3, {
     const T = THREE, W = D.west || {};
     // 회전초: 바람에 굴러다님. 마지막 결투 초 세기 때는 두 사람 사이로 하나가 지나감
     for (const [i, w] of (this.tumbles || []).entries()) {
-      if (i === 0 && W.ph === 'count' && W.tw != null) { const q = (D.t - W.tw) / 3.3; w.x = W.cx - 1 + Math.sin(q * 2) * .4; w.z = -9 + q * 18; }
+      if (i === 0 && W.ph === 'count' && W.tw != null) { const q = (D.t - W.tw) / 5.4; w.x = W.cx - 1 + Math.sin(q * 2) * .4; w.z = -9 + q * 18; }
       else { w.z += w.sp * dt; if (w.z > 45) { w.z = -45; w.x = rnd(-30, 30); } }
       w.g.position.set(w.x, .55 * w.s + Math.abs(Math.sin(t * 3 + w.ph)) * .45, w.z); w.g.scale.setScalar(w.s); w.g.rotation.x += dt * w.sp * 1.6; w.g.rotation.y += dt * .4;
     }
@@ -4880,6 +4884,7 @@ Object.assign(R3, {
     if (this.intro) { ar = .25 + Math.abs(Math.sin(t * 2 + h.id)) * 1.2; }
     if (!h.alive && h.st !== 'win') { ar = 2.4; al = 2.2; }
     if (W.ph === 'sunset' && h === W.wi) { ar = .2 + Math.sin(p) * .25; al = .3 - Math.sin(p) * .25; }
+    if ((W.ph === 'gunA' && h === W.A) || (W.ph === 'gunB' && h === W.B)) ar = .25 + Math.sin(t * 23) * .05;
     m.aR.rotation.z = ar; m.aL.rotation.z = al;
     if (m.flash) m.flash.visible = D.t - (h.flashT || -9) < .09;
   },
@@ -4890,13 +4895,18 @@ Object.assign(R3, {
         s => { const a = this.intro.a0 + 1.4 + Math.PI * 2 * s; return { p: [Math.cos(a) * R * .35, 1.7, Math.sin(a) * R * .35], l: [Math.cos(a) * R, 1.2, Math.sin(a) * R] }; });
       return k;
     }
+    // 영화 장면은 바뀌는 순간 바로 끊어서 넘어감 (컷)
+    if (W.ph !== this.westPh) { this.westPh = W.ph; if (['faceA', 'faceB', 'gunA', 'gunB', 'count'].includes(W.ph)) this.snapCam = true; }
     const f = A.follow != null ? byId(A.follow) : null;
     if (f && !D.cine && W.ph !== 'sunset') { want.set(f.x - Math.cos(f.ang) * 5, 3.2, f.z - Math.sin(f.ang) * 5); look.set(f.x, 1.1, f.z); return 1 - Math.exp(-dt * 3); }
     const a = W.A, b = W.B, face = (h, o) => { const fx = Math.cos(h.ang), fz = Math.sin(h.ang); want.set(h.x + fx * 2.7 + fz * .45, 1.4, h.z + fz * 2.7 - fx * .45); look.set(h.x, 1.3, h.z); this.snapCam = !!o; return 1 - Math.exp(-dt * 8); };
     if (W.ph === 'fwalk') { want.set(W.cx + 13, 2.4, 0); look.set(W.cx, 1, 0); return 1 - Math.exp(-dt * 2); }
     if (W.ph === 'faceA') return face(a, D.t - W.t0 < .05);
     if (W.ph === 'faceB') return face(b, D.t - W.t0 < .05);
-    if (W.ph === 'count' || W.ph === 'draw' || W.ph === 'after2') { if (D.t - W.t0 < .05 && W.ph === 'count') this.snapCam = true; want.set(W.cx + 10.5, 1.35, 0); look.set(W.cx - 6, 1.4, 0); return 1 - Math.exp(-dt * 3); }
+    const gun = (h, o) => { const fx = Math.cos(h.ang), fz = Math.sin(h.ang), sx = Math.sin(h.ang), sz = -Math.cos(h.ang), hx = h.x + sx * .36, hz = h.z + sz * .36; want.set(hx + fx * .75 + sx * .95, .3, hz + fz * .75 + sz * .95); look.set(hx + fx * .05 + sx * .05, .2, hz + fz * .05 + sz * .05); this.snapCam = !!o; return 1 - Math.exp(-dt * 8); };
+    if (W.ph === 'gunA') return gun(a, D.t - W.t0 < .05);
+    if (W.ph === 'gunB') return gun(b, D.t - W.t0 < .05);
+    if (W.ph === 'count' || W.ph === 'draw' || W.ph === 'hold' || W.ph === 'after2') { if (D.t - W.t0 < .05 && W.ph === 'count') this.snapCam = true; want.set(W.cx + 10.5, 1.35, 0); look.set(W.cx - 6, 1.4, 0); return 1 - Math.exp(-dt * 3); }
     if (W.ph === 'sunset' || (showWin && W.wi)) { const w = W.wi || D.winner; want.set(w.x + 7, 1.6, w.z + 1.2); look.set(w.x - 12, 1.8, w.z); return 1 - Math.exp(-dt * 2); }
     if (showWin) { const w = D.winner, a2 = Math.sin(t * .4) * .7; want.set(w.x + Math.cos(a2) * 6, 3, w.z + Math.sin(a2) * 6); look.set(w.x, 1.1, w.z); return 1 - Math.exp(-dt * 3); }
     const an = t * .05 + .5, rr = R * 2.1 + 6;

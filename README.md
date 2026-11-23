@@ -81,6 +81,20 @@
 - 결과 복사, 다시 뽑기, 홈화면으로
 - 저사양 기기용 간소화 연출, PC·태블릿 반응형
 
+## 개인정보
+
+- 입력한 명단은 사용하는 기기의 브라우저(localStorage)에만 저장되고, 서버나 외부 서비스로 보내지 않습니다.
+- 위치는 위치 권한을 허용했을 때만 날씨 확인에 쓰며, 소수 첫째 자리(약 10km 단위)로 줄인 좌표만 날씨 서비스(Open-Meteo)와 지역 이름 서비스(BigDataCloud)에 보냅니다. 위치를 저장하지 않습니다.
+- 회원가입, 로그인, 광고, 분석 도구가 없습니다.
+
+## 출처와 라이선스
+
+- 날씨 데이터: [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))
+- 지역 이름: [BigDataCloud](https://www.bigdatacloud.com/) 무료 클라이언트 역지오코딩 API
+- 3D 그래픽: [three.js](https://threejs.org/) r128 (MIT)
+- 글꼴: Jua, Gowun Dodum ([Google Fonts](https://fonts.google.com/), SIL Open Font License)
+- 배경음악: 제작자가 [Suno](https://suno.com/)로 만든 곡입니다.
+
 ## 공정성
 
 시작하는 순간 `crypto.getRandomValues` 기반의 편향 없는 난수로 피셔–예이츠 섞기를 한 번 실행해 전체 순서를 확정합니다. 넘어지고, 밀려나고, 막고, 궁극기를 쓰고, 발판이 가라앉고, 지렁이가 쫓아오고, 손바닥으로 치고, 기차가 지나가고, 물고기가 낚이는 장면은 이미 정해진 순서를 보여 주는 연출일 뿐 결과에 영향을 주지 않습니다. 체력이나 위치만 보고는 순위를 짐작하기 어렵도록 연출이 뒤섞입니다.

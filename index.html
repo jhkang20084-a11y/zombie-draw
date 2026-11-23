@@ -2848,7 +2848,8 @@ const SEA_FISH = [
   { n: '쏠배감펭', c: '#d9573f', b: '#fff0e6', f: '#f2b8a8', s: [.62, .42, .28], k: 'lion' },
   { n: '청새치', c: '#2d4f8f', b: '#dfe8f2', f: '#2d4f8f', s: [1.35, .4, .28], k: 'marlin' },
   { n: '나비고기', c: '#ffd23f', b: '#fff6c9', f: '#ffd23f', s: [.5, .5, .14], k: 'butter' },
-  { n: '아귀', c: '#7a6450', b: '#c9b49c', f: '#6a5440', s: [.7, .55, .6], k: 'angler' }
+  { n: '아귀', c: '#7a6450', b: '#c9b49c', f: '#6a5440', s: [.7, .55, .6], k: 'angler' },
+  { n: '광어', c: '#8a7356', b: '#f4efe6', f: '#9c8462', s: [.78, .16, .55], k: 'flounder' }
 ];
 function lavaGrid(k) { const out = []; for (let q = -k; q <= k; q++) for (let r = Math.max(-k, -q - k); r <= Math.min(k, -q + k); r++) out.push({ x: LAVA.SP * (q + r / 2), z: LAVA.SP * r * Math.sqrt(3) / 2, ring: Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) }); return out; }
 const lavaK = RA => Math.max(2, Math.round(RA / LAVA.SP - .6));
@@ -4586,9 +4587,9 @@ Object.assign(R3, {
     const fin = (par, x, y, sx, sy, rz, m) => { const c = this.part(this.CONE, m || fM, .05, par); c.scale.set(sx, sy, .05); c.rotation.z = rz; c.position.set(x, y, 0); return c; };
     if (sp.k === 'gold') { fin(tail, -L * .3, H * .25, H * .55, L * .7, -Math.PI / 2 - .35); fin(tail, -L * .3, -H * .25, H * .55, L * .7, -Math.PI / 2 + .35); }
     else fin(tail, -L * .25, 0, H * .7, L * .55, -Math.PI / 2);
-    fin(body, -L * .1, H * .88, L * .3, H * (sp.k === 'angel' ? 1.3 : .6), .35);
+    if (sp.k !== 'flounder') fin(body, -L * .1, H * .88, L * .3, H * (sp.k === 'angel' ? 1.3 : .6), .35);
     if (sp.k === 'angel') fin(body, -L * .1, -H * .88, L * .3, H * 1.1, Math.PI - .35);
-    [1, -1].forEach(s => { const er = Math.max(.07, H * .24), ez = W * .78 * s; const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); e.scale.setScalar(er); e.position.set(L * .6, H * .22, ez); body.add(e);
+    if (sp.k !== 'flounder') [1, -1].forEach(s => { const er = Math.max(.07, H * .24), ez = W * .78 * s; const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); e.scale.setScalar(er); e.position.set(L * .6, H * .22, ez); body.add(e);
       const p = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#141010' })); p.scale.set(er * .6, er * .6, er * .35); p.position.set(L * .6 + er * .3, H * .22, ez + s * er * .85); body.add(p);
       const hl = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); hl.scale.setScalar(er * .2); hl.position.set(L * .6 + er * .45, H * .22 + er * .22, ez + s * er * 1.05); body.add(hl);
       const pf = this.part(this.CONE, fM, 0, body); pf.scale.set(H * .22, L * .3, .04); pf.rotation.set(s * .5, 0, Math.PI / 2 + .6); pf.position.set(L * .15, -H * .2, W * .85 * s); });
@@ -4610,6 +4611,16 @@ Object.assign(R3, {
     if (sp.k === 'angler') { const st = this.part(this.CYL, fM, 0, body); st.scale.set(.03, .6, .03); st.position.set(L * .7, H * 1.1, 0); st.rotation.z = -.6;
       const bulb = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#fff6a0' })); bulb.scale.setScalar(.09); bulb.position.set(L * .95, H * 1.38, 0); body.add(bulb);
       for (let i = 0; i < 4; i++) { const tth = this.part(this.CONE, this.M('#ffffff'), 0, body); tth.scale.set(.04, .1, .04); tth.position.set(L * .96, -H * .02, (i - 1.5) * .1); tth.rotation.z = Math.PI; } }
+    if (sp.k === 'flounder') {
+      // 광어: 납작하게 누운 몸, 두 눈이 위쪽 한쪽 면에 나란히 모여 있음
+      tail.rotation.x = Math.PI / 2;
+      const rim = this.part(this.SPH, fM, .03, body); rim.scale.set(L * 1.06, H * .45, W * 1.14); rim.position.y = -H * .05;
+      for (let i = 0; i < 9; i++) { const d = this.part(this.SPHL, this.M(i % 2 ? '#6b573f' : '#b39a74'), 0, body); d.scale.set(.06, .02, .06); d.position.set(rnd(-L * .6, L * .3), H * .93, rnd(-W * .6, W * .6)); }
+      [[L * .58, .12], [L * .42, -.06]].forEach(([x, z]) => { const er = .13; const e = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); e.scale.setScalar(er); e.position.set(x, H * .95, z); body.add(e);
+        const p = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#141010' })); p.scale.set(er * .62, er * .5, er * .62); p.position.set(x + er * .15, H * .95 + er * .62, z + er * .1); body.add(p);
+        const hl = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#ffffff' })); hl.scale.setScalar(er * .2); hl.position.set(x + er * .3, H * .95 + er * .95, z + er * .3); body.add(hl); });
+      body.userData.flat = true;
+    }
     if (sp.k === 'tang') { const r = this.part(this.SPH, dark, 0, body); r.scale.set(L * .6, H * .3, W * 1.03); r.position.set(-L * .05, H * .2, 0); }
     this.scene.add(g);
     return { g, body, tail };
@@ -4618,7 +4629,9 @@ Object.assign(R3, {
     m.g.position.set(h.x, h.y, h.z); m.g.scale.setScalar((h.sc || 1) * (h.st === 'win' ? 1.6 : 1));
     if (h.hooked || h.caughtFly) m.g.rotation.set(0, -h.ang, Math.PI / 2 + Math.sin(t * 22) * .35);
     else m.g.rotation.set(0, -h.ang, Math.max(-.5, Math.min(.5, (h.vy || 0) * .18)));
-    m.tail.rotation.y = Math.sin(t * (h.hooked ? 26 : 7 + Math.hypot(h.vx || 0, h.vy || 0) * 2.5) + h.id) * .5;
+    // 광어는 위쪽 면(눈이 있는 면)이 늘 화면 쪽으로 보이게 기울임
+    if (m.body.userData.flat) m.body.rotation.x = (Math.cos(h.ang) >= 0 ? 1 : -1) * 1.2;
+    m.tail.rotation[m.body.userData.flat ? 'z' : 'y'] = Math.sin(t * (h.hooked ? 26 : 7 + Math.hypot(h.vx || 0, h.vy || 0) * 2.5) + h.id) * .5;
   },
   placeWorm(s, t, chomp) {
     const W = this.worm; if (!W) return;

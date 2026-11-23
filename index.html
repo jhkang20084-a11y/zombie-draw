@@ -393,7 +393,7 @@ details.mini[open] summary .label{visibility:hidden}
         <label class="check"><input type="checkbox" id="lite">저사양 기기용 간소화 연출 (입자 줄임)</label>
         <button class="btn primary big start gostart" id="goMaps" type="button">시작하기</button>
         <p class="privacy">명단은 이 기기의 브라우저에만 저장되고 어디로도 보내지 않아요. 위치는 날씨 확인에만 쓰고, 약 10km 단위로만 날씨 서비스(Open-Meteo)와 지역 이름 서비스(BigDataCloud)에 보내요.</p>
-        <div class="go-row" hidden><button class="btn big start seab" id="poolBtn" type="button">수영장으로 출발</button><button class="btn big start road" id="hwyBtn" type="button">고속도로로 출발</button><button class="btn primary big start" id="startBtn" type="button">숲으로 출발</button><button class="btn big start road" id="raceBtn" type="button">도로로 출발</button><button class="btn big start duelb" id="duelBtn" type="button">결투장으로 출발</button><button class="btn big start sumob" id="sumoBtn" type="button">도효로 출발</button><button class="btn big start boxb" id="boxBtn" type="button">링으로 출발</button><button class="btn big start lavab" id="lavaBtn" type="button">용암지대로 출발</button><button class="btn big start towerb" id="towerBtn" type="button">타워로 출발</button><button class="btn big start railb" id="railBtn" type="button">철길로 출발</button><button class="btn big start seab" id="seaBtn" type="button">바다로 출발</button></div>
+        <div class="go-row" hidden><button class="btn big start seab" id="poolBtn" type="button">수영장으로 출발</button><button class="btn big start road" id="hwyBtn" type="button">고속도로로 출발</button><button class="btn big start railb" id="westBtn" type="button">서부로 출발</button><button class="btn primary big start" id="startBtn" type="button">숲으로 출발</button><button class="btn big start road" id="raceBtn" type="button">도로로 출발</button><button class="btn big start duelb" id="duelBtn" type="button">결투장으로 출발</button><button class="btn big start sumob" id="sumoBtn" type="button">도효로 출발</button><button class="btn big start boxb" id="boxBtn" type="button">링으로 출발</button><button class="btn big start lavab" id="lavaBtn" type="button">용암지대로 출발</button><button class="btn big start towerb" id="towerBtn" type="button">타워로 출발</button><button class="btn big start railb" id="railBtn" type="button">철길로 출발</button><button class="btn big start seab" id="seaBtn" type="button">바다로 출발</button></div>
       </div>
     </section>
 
@@ -411,6 +411,7 @@ details.mini[open] summary .label{visibility:hidden}
         <button class="mapbtn" type="button" data-go="seaBtn" data-shot="sea"><img alt=""><span>바다</span></button>
         <button class="mapbtn" type="button" data-go="poolBtn" data-shot="pool"><img alt=""><span>수영장</span></button>
         <button class="mapbtn" type="button" data-go="hwyBtn" data-shot="hwy"><img alt=""><span>고속도로</span></button>
+        <button class="mapbtn" type="button" data-go="westBtn" data-shot="west"><img alt=""><span>서부</span></button>
       </div>
     </section>
 
@@ -522,7 +523,7 @@ const SFX = {
         this.ctx = new C(); const comp = this.ctx.createDynamicsCompressor();
         this.out = this.ctx.createGain(); this.out.gain.value = .6; this.out.connect(comp); comp.connect(this.ctx.destination);
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume(); this.loadScream();
+      if (this.ctx.state === 'suspended') this.ctx.resume(); this.loadScream(); this.loadSamp('trainCome', 'sfx-train-approach.wav'); this.loadSamp('trainHorn', 'sfx-train-horn.wav');
     } catch (e) {}
   },
   ok() { return this.on && this.ctx; },
@@ -535,7 +536,20 @@ const SFX = {
       this.screamOff = Math.max(0, i / buf.sampleRate - .02); this.screamBuf = buf;
     }).catch(() => {}).finally(() => { this.screamLoading = false; });
   },
+  // 파일 효과음 (기차가 오는 소리 · 기차 경적)
+  loadSamp(name, url) {
+    const S2 = this.samp || (this.samp = {}); if (S2[name] || !this.ctx) return; S2[name] = 'loading';
+    fetch(url).then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => this.ctx.decodeAudioData(b, res, rej))).then(buf => { S2[name] = buf; }).catch(() => { S2[name] = null; });
+  },
+  playSamp(name, vol = 1) {
+    if (!this.ok()) return false; const buf = this.samp && this.samp[name]; if (!buf || buf === 'loading') return false;
+    const c = this.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = vol * (this.mul || 1); s.connect(g); g.connect(this.out); s.start(); return true;
+  },
+  trainCome() { this.playSamp('trainCome', .9); },
+  trainHorn() { if (!this.playSamp('trainHorn', 1)) this.horn(); },
+  screamOK() { return typeof arena !== 'undefined' && arena.mode === 'duel' && arena.duel && (arena.duel.style === 'sword' || arena.duel.style === 'sumo'); },
   fallScream() {
+    if (!this.screamOK()) return;
     if (!this.ok()) return; this.loadScream();
     if (!this.screamBuf) return this.scream();
     const c = this.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = this.screamBuf; s.playbackRate.value = rnd(.94, 1.08);
@@ -570,7 +584,7 @@ const SFX = {
     o.connect(f); f.connect(g); g.connect(this.out); o.start(t); m.start(t); o.stop(t + len + .1); m.stop(t + len + .1);
     this.noise(t, len * .5, .06, 'bandpass', 900, 2);
   },
-  scream() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sawtooth', 700, 1100, t, .18, .05); this.osc('sawtooth', 1100, 520, t + .16, .4, .05); },
+  scream() { if (!this.ok() || !this.screamOK()) return; const t = this.ctx.currentTime; this.osc('sawtooth', 700, 1100, t, .18, .05); this.osc('sawtooth', 1100, 520, t + .16, .4, .05); },
   infect() { this.poof(); },
   engine(len = 1.4) { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sawtooth', 48, 70, t, len, .12); this.noise(t, len, .14, 'lowpass', 300); },
   stinger() { if (!this.ok()) return; const t = this.ctx.currentTime; [329.63, 415.3, 493.88].forEach(f => this.osc('triangle', f, 0, t, .9, .09)); this.osc('sine', 1318.5, 0, t, .5, .06); this.noise(t, .25, .2, 'highpass', 5000); },
@@ -586,6 +600,8 @@ const SFX = {
   },
   squish() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('sine', 520, 140, t, .14, .35); this.osc('triangle', 260, 980, t + .12, .18, .14); this.noise(t, .06, .1, 'lowpass', 900); },
   boom() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .7, .7, 'lowpass', 900); this.osc('sine', 130, 38, t, .55, .5); this.osc('square', 300, 60, t, .25, .06); },
+  gun() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .16, .7, 'lowpass', 2600); this.osc('square', 190, 38, t, .14, .22); this.noise(t + .03, .7, .14, 'bandpass', 700, .7); },
+  cock() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .03, .25, 'highpass', 3500); this.noise(t + .07, .04, .2, 'highpass', 2500); },
   bell() { if (!this.ok()) return; const t = this.ctx.currentTime; this.osc('triangle', 1250, 1240, t, .22, .11); this.osc('sine', 2500, 2480, t, .12, .04); },
   horn() { if (!this.ok()) return; const t = this.ctx.currentTime; [0, .75].forEach((d, i) => { const L = i ? .9 : .45; this.osc('sawtooth', 466, 462, t + d, L, .16); this.osc('sawtooth', 587, 583, t + d, L, .13); this.osc('sine', 233, 231, t + d, L, .24); }); },
   chug() { if (!this.ok()) return; const t = this.ctx.currentTime; this.noise(t, .12, .16, 'bandpass', 700, 1.5); },
@@ -658,7 +674,7 @@ const SFX = {
 /* ───────── 배경음악: 숲은 music-forest.mp3, 레이싱은 music-race.mp3 를 반복 재생 ───────── */
 const MUSIC = {
   el: null, on: false, src: 'music-forest.mp3',
-  vol(src) { return /duel|sumo|boxing|lava|tower|rail|sea/.test(src) ? .4 : .55; },
+  vol(src) { return /duel|sumo|boxing|lava|tower|rail|sea|pool|hwy|west/.test(src) ? .4 : .55; },
   use(src) { this.src = src; if (this.el && !this.el.src.endsWith(src)) { this.el.pause(); this.el.src = src; } if (this.el) this.el.volume = this.vol(src); },
   audio() { if (!this.el) { this.el = new Audio(this.src); this.el.loop = true; this.el.preload = 'auto'; this.el.volume = this.vol(this.src); } return this.el; },
   start() { if (!SFX.on) return; this.on = true; const p = this.audio().play(); if (p && p.catch) p.catch(() => {}); },
@@ -1876,7 +1892,7 @@ const R3 = {
     } else if (race === 'duel') {
       const band = this.part(this.CYL, this.M('#e8473b'), 0, body); band.scale.set(.57, .07, .555); band.position.set(-.02, 1.22, 0);
       [.1, -.1].forEach(z => { const tl = this.part(this.SPHL, this.M('#e8473b'), 0, body); tl.scale.set(.18, .04, .06); tl.position.set(-.62, 1.15, z); tl.rotation.z = -.5; });
-    } else if (race === 'lava' || race === 'tower' || race === 'rail' || race === 'pool') {
+    } else if (race === 'lava' || race === 'tower' || race === 'rail' || race === 'pool' || race === 'west') {
     } else if (race) {
       const helm = this.part(this.HALF, this.M(h.kc), .05, body); helm.scale.set(.6, .56, .58); helm.position.set(-.02, 1.1, 0); helm.rotation.z = .12;
       const line = this.part(this.HALF, this.M('#ffffff'), 0, body); line.scale.set(.18, .575, .605); line.position.set(-.02, 1.1, 0); line.rotation.z = .12;
@@ -2063,6 +2079,7 @@ const R3 = {
   drawLabels(A, live) {
     const c = this.lctx, d = this.ld, W = this.w, H = this.h; c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, W, H);
     const v = new THREE.Vector3(), items = [];
+    if (A.mode === 'duel' && A.duel && A.duel.cine) return;
     for (const h of A.humans) {
       if (h.alpha <= 0) continue;
       const lying = h.rot > .7, km = A.mode === 'race' ? this.karts.get(h.id) : A.mode === 'duel' ? this.duelers.get(h.id) : null;
@@ -2484,6 +2501,7 @@ Object.assign(R3, {
   // 날씨에 따라 하늘색·안개·빛·비/눈 바꿈
   applyWeather(m) {
     const W = WEATHER, race = m === 'race', duel = m === 'duel';
+    if (duel && this.duelStyle === 'west') { this.scene.background.set('#f4b07a'); this.scene.fog.color.set('#f4b07a'); this.scene.fog.near = 70; this.scene.fog.far = 330; if (this.hemi) this.hemi.intensity = .72; if (this.sun) this.sun.intensity = .7; this.baseHemi = .72; if (this.precip) this.precip.visible = false; return; }
     if (duel && this.duelStyle === 'sea') { this.scene.background.set('#a8dcff'); this.scene.fog.color.set('#a8dcff'); this.scene.fog.near = 150; this.scene.fog.far = 500; if (this.hemi) this.hemi.intensity = .75; if (this.sun) this.sun.intensity = .85; this.baseHemi = .75; if (this.precip) this.precip.visible = false; return; }
     if (duel && this.duelStyle === 'lava') { this.scene.background.set('#5e2c22'); this.scene.fog.color.set('#5e2c22'); this.scene.fog.near = 45; this.scene.fog.far = 150; if (this.hemi) this.hemi.intensity = .55; if (this.sun) this.sun.intensity = .62; this.baseHemi = .55; if (this.precip) this.precip.visible = false; return; }
     if (duel && this.duelStyle === 'boxing') { this.scene.background.set('#08080d'); this.scene.fog.color.set('#08080d'); this.scene.fog.near = 30; this.scene.fog.far = 85; if (this.hemi) this.hemi.intensity = .34; if (this.sun) this.sun.intensity = .45; this.baseHemi = .34; if (this.precip) this.precip.visible = false; return; }
@@ -2855,7 +2873,9 @@ function lavaGrid(k) { const out = []; for (let q = -k; q <= k; q++) for (let r 
 const lavaK = RA => Math.max(2, Math.round(RA / LAVA.SP - .6));
 const lavaKFor = n => { let k = 2; while (k < 6 && 1 + 3 * k * (k + 1) < n * 1.8 + 4) k++; return k; };
 // 슬로모션·줌인·궁극기를 쓰지 않는 맵
-const NOSLOW = new Set(['sword', 'boxing', 'sumo', 'pool', 'hwy']);
+const NOSLOW = new Set(['sword', 'boxing', 'sumo', 'pool', 'hwy', 'west']);
+// 서부: 원형으로 서서 총을 겨눔. 해는 -x 쪽 지평선
+const westR = n => Math.max(4.5, Math.min(11, 2.2 + n * .3));
 // 수영장: 레인마다 한 명. POOL.L은 레인 길이
 const POOL = { L: 46, LW: 1.8 };
 const poolHW = n => n * POOL.LW / 2;
@@ -2883,6 +2903,8 @@ function hwyGen(H, upto) {
       const a = free(r - 1), b = free(r); let both = 0; for (let c = 0; c < W; c++) if (a[c] && b[c]) both++;
       const opts = shuffle([...Array(W).keys()].filter(c => a[c] && !b[c]));
       while (both < 3 && opts.length) { const c = opts.pop(); if (t === 'grass') R.obs[c] = 0; else R.pad[c] = 1; both++; }
+      // 막다른 칸이 없게: 앞 줄에서 옆으로 이어진 칸 묶음마다 이번 줄로 나아갈 칸이 하나는 있도록
+      if (t !== 'road') { const a2 = free(r - 1); let c = 0; while (c < W) { if (!a2[c]) { c++; continue; } const run = []; while (c < W && a2[c]) run.push(c++); const b2 = free(r); if (!run.some(q => b2[q])) { const q = run[Math.floor(Math.random() * run.length)]; if (t === 'grass') R.obs[q] = 0; else R.pad[q] = 1; } } }
     }
   }
 }
@@ -2898,12 +2920,13 @@ const DSTYLE = {
   rail:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ffd24d', name: '철길' },
   sea:    { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#9fd8ff', name: '바다' },
   pool:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#9fd8ff', name: '수영장' },
-  hwy:    { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ffd24d', name: '고속도로' }
+  hwy:    { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ffd24d', name: '고속도로' },
+  west:   { atk: .5,  hitAt: .5,  reach: 1.8, dmg: [0, 0],  knock: 0,   sq: false, hp: false, ult: '#ffb347', name: '서부' }
 };
 Object.assign(arena, {
   setupDuel(people, style = 'sword') {
     const n = people.length, ST = DSTYLE[style];
-    const RA = style === 'pool' ? poolHW(n) : style === 'hwy' ? hwyW(n) : style === 'rail' ? railXL(n) : style === 'sea' ? seaW(n) : style === 'tower' ? towerLen(n) : style === 'lava' ? (lavaKFor(n) + .6) * LAVA.SP : style === 'sumo' ? Math.max(4.2, Math.min(8, 3.2 + n * .27)) : Math.max(5, Math.min(9.5, 3.6 + n * .32));
+    const RA = style === 'west' ? westR(n) : style === 'pool' ? poolHW(n) : style === 'hwy' ? hwyW(n) : style === 'rail' ? railXL(n) : style === 'sea' ? seaW(n) : style === 'tower' ? towerLen(n) : style === 'lava' ? (lavaKFor(n) + .6) * LAVA.SP : style === 'sumo' ? Math.max(4.2, Math.min(8, 3.2 + n * .27)) : Math.max(5, Math.min(9.5, 3.6 + n * .32));
     this.zombies = []; this.truck = { x: 0, tx: 0, on: false, door: 0, doorT: 0, riders: [] };
     this.duel = { style, ST, RA, P: style === 'sumo' ? RA + 1.4 : RA, go: false, t: 0, killAt: 6, idx: 0, pending: null, kills: [], fx: [], ultFx: [], frames: [], recT: 0, final: false, ended: false, winner: null, endT: 0, seq: [] };
     this.humans = people.map((p, i) => {
@@ -2914,6 +2937,7 @@ Object.assign(arena, {
         ult: rnd(0, .25), floorR: rnd(10, 75), bruise: 0 };
     });
     if (style === 'lava') this.lavaPlace();
+    if (style === 'west') { this.duel.west = { ph: 'idle', t0: 0 }; this.humans.forEach(h => { h.ult = null; }); this.westPlace(); }
     if (style === 'pool') { this.duel.pool = { placed: 0, plan: false }; this.humans.forEach(h => { h.ult = null; }); this.poolPlace(); }
     if (style === 'hwy') { const H = { W: RA, rows: [], off: 8, cars: [], cid: 0, cx: 1, occ: new Map() }; hwyGen(H, 40); this.duel.hwy = H; this.humans.forEach((h, i) => { h.ult = null; h.kind = i % HWY_KINDS.length; }); this.hwyPlace(); }
     if (style === 'rail') { const K = railK(RA); this.duel.rail = { K, XL: RA, lanes: Array.from({ length: K }, (_, j) => ({ j, st: 'idle', t0: 0, dur: 0, dir: 1 })), trains: [], tid: 0 }; this.railPlace(); }
@@ -2923,6 +2947,79 @@ Object.assign(arena, {
       { const D = this.duel, n = this.humans.length, cnt = Math.max(4, Math.round(n * .35)), s0 = 16, s1 = RA - 14;
         D.mines = Array.from({ length: cnt }, (_, i) => ({ s: s0 + (s1 - s0) * (i + rnd(.15, .85)) / cnt, lane: [-.85, 0, .85][Math.floor(Math.random() * 3)], live: true }));
         const k = n >= 5 ? Math.max(1, Math.round(n * .1)) : 0, idx = shuffle(Array.from({ length: Math.max(0, n - 2) }, (_, i) => i)).slice(0, k); D.mineIdx = new Set(idx); } this.humans.forEach(h => { h.ult = rnd(0, .3); h.vf = rnd(0, 6.283); h.spd = Math.random(); h.spdT = rnd(6, 14); }); this.towerPlace(); }
+  },
+  // 서부: 원형으로 모여 섬. 한 번에 3명이 쏘고 3명이 쓰러짐 (정해진 순서대로). 마지막 두 명은 영화처럼 결투
+  westPlace() {
+    const D = this.duel, R = D.RA, hs = shuffle(this.humans), n = hs.length;
+    hs.forEach((h, i) => { const a = i / n * Math.PI * 2; h.x = h.tx = Math.cos(a) * R; h.z = h.tz = Math.sin(a) * R; h.ang = h.face = a + Math.PI; h.y = 0; h.lie = 0; h.aimAt = null; h.flashT = -9; });
+    this.wrap.classList.remove('slowmo');
+  },
+  westRegroup(alive) {
+    const D = this.duel, n = alive.length, R = Math.max(3.4, Math.min(D.RA, 1.4 + n * .32));
+    const hs = alive.slice().sort((p, q) => Math.atan2(p.z, p.x) - Math.atan2(q.z, q.x)), a0 = Math.atan2(hs[0].z, hs[0].x);
+    hs.forEach((h, i) => { const a = a0 + i / n * Math.PI * 2; h.tx = Math.cos(a) * R; h.tz = Math.sin(a) * R; h.face = a + Math.PI; });
+  },
+  westShoot(a, v, kill) {
+    const D = this.duel;
+    a.flashT = D.t; (D.shots || (D.shots = [])).push({ a, v, t: D.t });
+    this.kSfx(a, 'gun'); this.wsplat(a.x + Math.cos(a.ang) * .9, 1.2, a.z + Math.sin(a.ang) * .9, ['#fff3b0', '#ffd24d', '#ffffff'], 8, 3);
+    if (!kill) return;
+    v.alive = false; v.doomed = false; v.st = 'ko'; v.aimAt = null; v.hitT = D.t; v.koT = D.t; D.idx++; a.kills++;
+    const dx = v.x - a.x, dz = v.z - a.z, l = Math.hypot(dx, dz) || 1; v.kx = dx / l; v.kz = dz / l;
+    D.kills.push({ t: D.t, killer: a.id, victim: v.id }); this.shake(5);
+    this.wsplat(v.x, .3, v.z, ['#d9b27a', '#e9c48c', '#c49a62'], 18, 3.5);
+    if (this.onOut) this.onOut(v);
+  },
+  westStep(dt, alive) {
+    const D = this.duel, W = D.west, keep = D.keep || 1, byId = id => this.humans.find(h => h.id === id);
+    // 걷기 · 총 겨누기
+    for (const h of this.humans) {
+      if (!h.alive && h.st !== 'win') {
+        h.lie += (1.45 - h.lie) * Math.min(1, dt * 7);
+        if (h.kx != null && D.t - h.hitT < .35) { h.x += h.kx * dt * 2.2; h.z += h.kz * dt * 2.2; }
+        continue;
+      }
+      const dx = h.tx - h.x, dz = h.tz - h.z, d = Math.hypot(dx, dz);
+      h.moving = d > .05;
+      if (h.moving) { const st = Math.min(d, (h.wsp || 2.4) * dt); h.x += dx / d * st; h.z += dz / d * st; if (!h.aimAt) h.ang = Math.atan2(dz, dx); }
+      else if (!h.aimAt && h.face != null) { let da = h.face - h.ang; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2; h.ang += da * Math.min(1, dt * 6); }
+      if (h.aimAt) { const t2 = h.aimAt, want = Math.atan2(t2.z - h.z, t2.x - h.x); let da = want - h.ang; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2; h.ang += da * Math.min(1, dt * 9); h.aimQ = Math.min(1, (h.aimQ || 0) + dt * 3); }
+      else h.aimQ = Math.max(0, (h.aimQ || 0) - dt * 2.5);
+    }
+    if (!D.go) return;
+    // 원형 사격: 모두 총을 뽑아 겨누고, 그중 세 명이 쏨
+    if (W.ph === 'idle' && !D.ended && alive.length > keep && D.t >= D.killAt) {
+      if (alive.length === 2 && keep === 1) {
+        const lo = byId(D.seq[D.idx].id), wi = alive.find(h => h !== lo);
+        W.ph = 'fwalk'; W.t0 = D.t; W.A = alive[0]; W.B = alive[1]; W.lo = lo; W.wi = wi; D.pending = lo; D.cine = true;
+        W.cx = -(D.RA + 13); W.A.tx = W.cx; W.A.tz = -5; W.A.face = Math.PI / 2; W.B.tx = W.cx; W.B.tz = 5; W.B.face = -Math.PI / 2; W.A.wsp = W.B.wsp = 3.2;
+        this.wrap.classList.add('slowmo');
+      } else {
+        const k = Math.max(1, Math.min(3, alive.length - keep, Math.floor(alive.length / 2)));
+        const vic = D.seq.slice(D.idx, D.idx + k).map(p => byId(p.id)).filter(h => h && h.alive), sh = shuffle(alive.filter(h => !vic.includes(h))).slice(0, vic.length);
+        alive.forEach(h => { const i = sh.indexOf(h); if (i >= 0) h.aimAt = vic[i]; else { const o = alive.filter(q => q !== h); h.aimAt = o[Math.floor(Math.random() * o.length)]; } });
+        vic.forEach(v => { v.doomed = true; });
+        W.ph = 'aim'; W.t0 = D.t; W.vic = vic; W.sh = sh; D.pending = vic[0]; W.dur = rnd(1.5, 2.3); SFX.cock();
+      }
+    }
+    if (W.ph === 'aim' && D.t - W.t0 >= W.dur) { W.sh.forEach((a, i) => this.westShoot(a, W.vic[i], true)); W.ph = 'after'; W.t0 = D.t; }
+    if (W.ph === 'after' && D.t - W.t0 >= 1.1) {
+      this.humans.forEach(h => { h.aimAt = null; }); const left = this.humans.filter(h => h.alive);
+      this.westRegroup(left); W.ph = 'idle'; D.pending = null; D.killAt = D.t + (left.length > 12 ? 1.8 : 2.6);
+    }
+    // 마지막 두 명: 걸어가 마주 섬 → 각자 얼굴 → 초 세기 → 동시에 탕 → 한 명만 쓰러짐 → 석양으로 걸어감
+    const A = W.A, B = W.B;
+    if (W.ph === 'fwalk' && ((!A.moving && !B.moving) || D.t - W.t0 > 4)) { W.ph = 'faceA'; W.t0 = D.t; SFX.heart(); }
+    if (W.ph === 'faceA' && D.t - W.t0 > 1.9) { W.ph = 'faceB'; W.t0 = D.t; SFX.heart(); }
+    if (W.ph === 'faceB' && D.t - W.t0 > 1.9) { W.ph = 'count'; W.t0 = D.t; W.n = 0; W.tw = D.t; }
+    if (W.ph === 'count') {
+      const n = Math.floor((D.t - W.t0) / 1.1);
+      if (n !== W.n || D.t - W.t0 < .02) { W.n = n; if (n < 3) { overlay('cd', `<div class="ov-name slam">${3 - n}</div>`); SFX.count(3 - n); } }
+      if (n >= 3) { hideOverlay(); A.aimAt = B; B.aimAt = A; W.ph = 'draw'; W.t0 = D.t; }
+    }
+    if (W.ph === 'draw' && D.t - W.t0 > .35) { this.westShoot(W.wi, W.lo, true); this.westShoot(W.lo, W.wi, false); W.ph = 'after2'; W.t0 = D.t; }
+    if (W.ph === 'after2' && D.t - W.t0 > 2.2) { W.wi.aimAt = null; W.wi.face = Math.PI; W.wi.tx = W.cx - 70; W.wi.tz = W.wi.z; W.wi.wsp = 1.25; W.ph = 'sunset'; W.t0 = D.t; }
+    if (W.ph === 'sunset' && D.t - W.t0 > 5.5 && D.pending) { D.pending = null; D.cine = false; this.wrap.classList.remove('slowmo'); }
   },
   // 수영장: 출발대에서 뛰어들어 레인을 끝까지 헤엄침. 먼저 벽에 닿은 친구가 1등 (도착 시각은 시작할 때 정해 둔 순서대로)
   poolPlace() {
@@ -3009,7 +3106,7 @@ Object.assign(arena, {
   hwyHopTo(h, r, c, dur) {
     const D = this.duel, H = D.hwy; H.occ.delete(h.r * 1000 + h.c);
     h.hop = { t0: D.t, dur: dur || .26, fx: h.x, fz: h.z, tx: r * HWY.C, tz: hwyZ(H, c) };
-    h.ang = r > h.r ? 0 : r < h.r ? Math.PI : c > h.c ? -Math.PI / 2 : Math.PI / 2;
+    h.ang = r > h.r ? 0 : r < h.r ? Math.PI : c > h.c ? Math.PI / 2 : -Math.PI / 2; // 이동하는 쪽을 바라봄 (+z 쪽이면 얼굴도 +z)
     if (r > h.r) h.prog = D.t; h.r = r; h.c = c; H.occ.set(r * 1000 + c, h);
     if (this.follow === h.id || Math.random() < .06) this.kSfx(h, 'hop');
   },
@@ -3052,22 +3149,25 @@ Object.assign(arena, {
     for (const car of H.cars) { if (car.r !== r) continue; const s = (z - car.z) * car.dir, m = car.len / 2 + .95, ta = (s - m) / car.spd, tb = (s + m) / car.spd; if (tb >= 0 && ta <= win) return true; }
     return false;
   },
-  hwyPath(h, maxR, minR) {
-    const H = this.duel.hwy, key = (r, c) => r * 1000 + c, seen = new Set([key(h.r, h.c)]), q = [[h.r, h.c, 0, null]], DIRS = [[1, 0], [0, -1], [0, 1]]; // 뒤로는 가지 않음 (막히면 옆으로 돌아감)
+  hwyPath(h, maxR, minR, back, noOcc) {
+    const H = this.duel.hwy, key = (r, c) => r * 1000 + c, seen = new Set([key(h.r, h.c)]), q = [[h.r, h.c, 0, null, -1]], DIRS = [[1, 0], [0, -1], [0, 1]]; // 뒤로는 가지 않음 (막히면 옆으로 돌아감)
     let best = null, qi = 0;
     // 왼쪽·오른쪽 중 어느 쪽을 먼저 볼지는 동물마다 정해 둠 (좌우로 왔다 갔다 하지 않게)
     if (h.id % 2) { DIRS[1] = [0, 1]; DIRS[2] = [0, -1]; }
+    if (back) DIRS.push([-1, 0]);
     while (qi < q.length) {
-      const [r, c, d, first] = q[qi++];
-      if (first && (!best || r > best.r || (r === best.r && d < best.d))) best = { r, c, d, first };
+      const qn = qi, [r, c, d, first] = q[qi++];
+      if (first && (!best || r > best.r || (r === best.r && d < best.d))) best = { r, c, d, first, qn };
       if (d > 14) continue;
       for (const [dr, dc] of DIRS) {
         const nr = r + dr, nc = c + dc, k = key(nr, nc);
         if (nr > maxR || nr < minR || seen.has(k) || !hwyWalk(H, nr, nc)) continue;
-        const o = H.occ.get(k); if (o && o !== h && d < 2) continue;
-        seen.add(k); q.push([nr, nc, d + 1, first || [nr, nc]]);
+        const o = noOcc ? null : H.occ.get(k); if (o && o !== h && d < 2) continue;
+        seen.add(k); q.push([nr, nc, d + 1, first || [nr, nc], qn]);
       }
     }
+    // 지나갈 길 전체 (뒤로 물러날 때 끝까지 따라감)
+    if (best && back) { const path = []; for (let i = best.qn; i > 0; i = q[i][4]) path.unshift([q[i][0], q[i][1]]); best.path = path; }
     return best;
   },
   hwyStep(dt, alive) {
@@ -3169,19 +3269,24 @@ Object.assign(arena, {
       if (hwyRow(H, h.r).t === 'road') { const pl = this.hwyCross(h, h.r, h.c, 1); if (pl) h.cross = pl; h.nextT = D.t + .05; continue; }
       const side = () => { const c = h.c + (Math.random() < .5 ? -1 : 1); if (hwyWalk(H, h.r, c) && !H.occ.has(h.r * 1000 + c)) this.hwyHopTo(h, h.r, c); };
       if (h.r >= maxRow - (h.id % 3)) { h.nextT = D.t + rnd(.4, .9); if (Math.random() < .3) side(); continue; }
-      // 나무·바위에 갇혀 오래 못 나아가면 앞의 낮은 장애물을 폴짝 넘음 (도로는 넘지 않음)
+      // 도로 앞에서 오래 건너지 못하면 옆 칸으로 옮겨 다른 길을 찾아봄 (장애물을 뛰어넘지 않음)
       if (h.prog == null) h.prog = D.t;
       if (room <= 3 && D.t - h.prog > 2.5) {
-        let done = false;
-        for (let dr = 1; dr <= 2 && !done; dr++) { const cs = [...Array(H.W).keys()].filter(c => Math.abs(c - h.c) <= 4 && hwyWalk(H, h.r + dr, c) && hwyRow(H, h.r + dr).t !== 'road' && !H.occ.has((h.r + dr) * 1000 + c) && (dr === 1 || hwyRow(H, h.r + 1).t !== 'road')).sort((a, b) => Math.abs(a - h.c) - Math.abs(b - h.c)); if (cs.length) { this.hwyHopTo(h, h.r + dr, cs[0], .45); h.leap = { t0: D.t }; done = true; } }
-        if (done) { h.nextT = D.t + .5; continue; }
-        // 그래도 6초 넘게 갇혀 있으면 차가 없는 순간에 짧은 도로(1~2차선)를 폴짝 건너뜀
-        if (D.t - h.prog > 6) { for (let dr = 2; dr <= 3 && !done; dr++) { const mid = []; for (let k = 1; k < dr; k++) mid.push(h.r + k); if (hwyRow(H, h.r + dr) && hwyRow(H, h.r + dr).t !== 'road' && hwyWalk(H, h.r + dr, h.c) && !H.occ.has((h.r + dr) * 1000 + h.c) && mid.every(q => hwyRow(H, q).t !== 'road' || !this.hwyCarWin(H, q, h.c, 0, .8))) { this.hwyHopTo(h, h.r + dr, h.c, .5); h.leap = { t0: D.t }; done = true; } } if (done) { h.nextT = D.t + .55; continue; } }
         // 앞이 도로인데 건널 곳이 없으면 옆으로 옮겨 다른 칸을 찾아봄
         if (hwyRow(H, h.r + 1) && hwyRow(H, h.r + 1).t === 'road') { const d = h.c <= 1 ? 1 : h.c >= H.W - 2 ? -1 : (Math.floor(D.t / 4) + h.id) % 2 ? 1 : -1, c = h.c + d; if (hwyWalk(H, h.r, c) && !H.occ.has(h.r * 1000 + c)) { this.hwyHopTo(h, h.r, c); h.nextT = D.t + HWY.STEP; continue; } }
       }
-      const best = this.hwyPath(h, Math.min(maxRow, h.r + 6), edge + 1);
+      if (h.route && h.route.length) {
+        const [nr, nc] = h.route[0], o = H.occ.get(nr * 1000 + nc), NR = hwyRow(H, nr);
+        if (!hwyWalk(H, nr, nc) || nr <= edge || NR.t === 'road') h.route = null;
+        else if (o && o !== h) { h.rwait = (h.rwait || 0) + 1; if (h.rwait > 4) { h.route = null; h.rwait = 0; } h.nextT = D.t + .15; continue; }
+        else { h.rwait = 0; h.route.shift(); this.hwyHopTo(h, nr, nc); h.nextT = D.t + .3; if (!h.route.length) h.route = null; continue; }
+      }
+      let best = this.hwyPath(h, Math.min(maxRow, h.r + 6), edge + 1);
+      // 앞이나 옆으로는 더 나아갈 수 없는 막다른 길이면, 뒤로 물러나서라도 지나갈 수 있는 길로 감 (뒤쪽 땅은 기다려 줌)
+      // 막다른 길인지는 다른 동물은 빼고 지형만 보고 판단
+      if ((!best || best.r <= h.r) && h.r < maxRow && !((this.hwyPath(h, Math.min(maxRow, h.r + 6), edge + 1, false, true) || { r: h.r }).r > h.r)) { const bb = this.hwyPath(h, Math.min(maxRow, h.r + 6), edge + 1, true); if (bb && bb.r > h.r && bb.path.length) { h.route = bb.path; best = null; } }
       h.nextT = D.t + .26 + (urgent ? rnd(.02, .12) : rnd(.08, .55));
+      if (h.route) { h.nextT = D.t; continue; }
       if (!best || !best.first) continue;
       const [fr, fc] = best.first, FR = hwyRow(H, fr);
       if (FR.t === 'road') {
@@ -3238,13 +3343,12 @@ Object.assign(arena, {
     const D = this.duel, R = D.rail, keep = D.keep || 1, XL = R.XL, RUN = 4.5;
     // 무리 전체가 앞으로 달림 (끝나면 천천히 멈춤)
     const run = D.ended ? RUN * Math.max(0, 1 - (D.t - D.endT) / 1.5) : D.go ? RUN : 0; R.cx += run * dt;
-    for (const ln of R.lanes) if (ln.st === 'warn' && D.t >= ln.t0 + ln.dur) { ln.st = 'train'; R.trains.push({ lane: ln.j, dir: ln.dir, x: R.cx - ln.dir * (XL + 110), sp: 78, id: ++R.tid }); SFX.horn(); }
+    for (const ln of R.lanes) if (ln.st === 'warn' && D.t >= ln.t0 + ln.dur) { ln.st = 'train'; R.trains.push({ lane: ln.j, dir: ln.dir, x: R.cx - ln.dir * (XL + 110), sp: 78, id: ++R.tid }); SFX.trainCome(); }
     if (R.lanes.some(l => l.st !== 'idle') && D.t >= (R.bellT || 0)) { R.bellT = D.t + .42; SFX.bell(); }
-    if (R.trains.length && D.t >= (R.chugT || 0)) { R.chugT = D.t + .2; SFX.chug(); }
     for (const tr of R.trains) {
       tr.x += tr.dir * tr.sp * dt;
       // 기차가 화면에 들어올 때 한 번 더 길게 빵
-      if (!tr.h2 && Math.abs(tr.x - R.cx) < XL + 14) { tr.h2 = true; SFX.horn(); }
+      if (!tr.h2 && Math.abs(tr.x - R.cx) < XL + 14) { tr.h2 = true; SFX.trainHorn(); }
       // 뒤쪽(먼저 닿는) 친구부터 차례로 치임
       const inLane = this.humans.filter(h => h.alive && h.lane === tr.lane && !h.hop && !h.fly).sort((p, q) => (p.x - q.x) * tr.dir);
       for (const h of inLane) {
@@ -3784,6 +3888,7 @@ Object.assign(arena, {
     if (this.onOut) this.onOut(v);
   },
   shuffleDuel() {
+    if (this.duel.style === 'west') { this.westPlace(); this.humans.forEach(h => { h.drop = { t0: this.t, delay: rnd(0, .35) }; }); return; }
     if (this.duel.style === 'pool') { this.poolPlace(); this.humans.forEach(h => { h.drop = { t0: this.t, delay: rnd(0, .35) }; }); return; }
     if (this.duel.style === 'hwy') { this.hwyPlace(); this.humans.forEach(h => { h.drop = { t0: this.t, delay: rnd(0, .35) }; }); return; }
     if (this.duel.style === 'sea') { this.seaPlace(); return; }
@@ -3838,7 +3943,7 @@ Object.assign(arena, {
     if (!D.go) return;
     D.t += dt;
     const alive = this.humans.filter(h => h.alive);
-    if (D.style === 'pool') this.poolStep(dt, alive); else if (D.style === 'hwy') this.hwyStep(dt, alive); else if (D.style === 'sea') this.seaStep(dt, alive); else if (D.style === 'rail') this.railStep(dt, alive); else if (D.style === 'tower') this.towerStep(dt, alive); else if (D.style === 'lava') this.lavaStep(dt, alive); else {
+    if (D.style === 'west') this.westStep(dt, alive); else if (D.style === 'pool') this.poolStep(dt, alive); else if (D.style === 'hwy') this.hwyStep(dt, alive); else if (D.style === 'sea') this.seaStep(dt, alive); else if (D.style === 'rail') this.railStep(dt, alive); else if (D.style === 'tower') this.towerStep(dt, alive); else if (D.style === 'lava') this.lavaStep(dt, alive); else {
     // 감독: 정해진 순서대로 다음 탈락자를 정하고, 가까운 상대가 노리게 함
     if (!D.ended && !D.pending && alive.length > (D.keep || 1) && D.t >= D.killAt) {
       const v = this.humans.find(h => h.id === D.seq[D.idx].id);
@@ -3865,6 +3970,8 @@ Object.assign(arena, {
       else if (!h.alive && (h.st === 'ko' || h.st === 'out') && h.y > -.2 && fl > P - .6 && !(D.t - (h.hitT || -9) < .8)) { this.clampIn(h, P - .6); h.vx *= .3; h.vz *= .3; }
       if (this.floorR(h) <= P) { if (h.y < 0 && h.y > -1.5) { h.y = 0; h.vy = 0; } }
       else if (h.alive) { this.clampIn(h, P - .4); h.vx *= -.3; h.vz *= -.3; if (h.y < 0) { h.y = 0; h.vy = 0; } }
+      // 링: 아무도 밧줄 밖으로 나가거나 떨어지지 않음
+      if (D.style === 'boxing') { const lim = D.RA - .45; if (Math.abs(h.x) > lim) { h.x = Math.sign(h.x) * lim; h.vx = 0; } if (Math.abs(h.z) > lim) { h.z = Math.sign(h.z) * lim; h.vz = 0; } if (h.y < 0) { h.y = 0; h.vy = 0; } }
       if (h.y < -.8 && !h.alive && !h.screamed) { h.screamed = true; this.kSfx(h, 'fallScream'); }
       if (h.y < -34) h.alpha = Math.max(0, h.alpha - dt * 2);
       const lieT = h.st === 'down' || h.st === 'ko' ? 1.45 : h.st === 'out' ? 1.1 : h.st === 'hit' ? .7 : h.st === 'fly' ? 1 : 0;
@@ -3875,6 +3982,7 @@ Object.assign(arena, {
     for (const b of this.humans) if (!b.alive && (b.st === 'ko' || b.st === 'out') && b.y > -.5) for (const p of alive) {
       const dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz);
       if (d > 0 && d < 1.1) { const k = (1.1 - d) / d; b.x += dx * k; b.z += dz * k; }
+      if (D.style === 'boxing') { const lim = D.RA - .45; b.x = Math.max(-lim, Math.min(lim, b.x)); b.z = Math.max(-lim, Math.min(lim, b.z)); }
     }
     // 서로 겹치지 않게
     for (let i = 0; i < alive.length; i++) for (let j = i + 1; j < alive.length; j++) {
@@ -4030,7 +4138,7 @@ Object.assign(arena, {
   // 최고의 플레이: 우승자가 가장 많이 활약한 구간을 다시 보여 줌
   startReplay() {
     const D = this.duel; if (!D || !D.winner || this.mode !== 'duel') return;
-    if (D.style === 'lava' || D.style === 'tower' || D.style === 'rail' || D.style === 'sea' || D.style === 'pool' || D.style === 'hwy') return this.onDuelDone && this.onDuelDone();
+    if (D.style === 'lava' || D.style === 'tower' || D.style === 'rail' || D.style === 'sea' || D.style === 'pool' || D.style === 'hwy' || D.style === 'west') return this.onDuelDone && this.onDuelDone();
     const w = D.winner, mine = D.kills.filter(e => e.killer === w.id);
     let best = null, bestN = -1;
     for (const e of mine) { const n = mine.filter(o => o.t >= e.t - 4 && o.t <= e.t + 1.2).length; if (n > bestN) { bestN = n; best = e; } }
@@ -4156,7 +4264,7 @@ Object.assign(R3, {
     let colR = RA * .95;
     this.boat = null; this.fisher = null; this.sharkM = null; this.railSig = null; this.railScroll = null; this.railGround = null; this.weeds = null; this.bubbles = null; this.puffs = this.puffs || [];
     if (this.trainM) { this.trainM.forEach(m => this.scene.remove(m)); this.trainM.clear(); }
-    this.lavaTiles = null; this.embers = null; this.lavaTex = null; this.worm = null; this.hand = null; this.shards = this.shards || [];
+    this.tumbles = null; this.lavaTiles = null; this.embers = null; this.lavaTex = null; this.worm = null; this.hand = null; this.shards = this.shards || [];
     this.duelStyle = style; this.clouds = null; this.petals = null; this.ropes = null; this.jumbo = null; this.dfans = [];
     const SPA = this.SPHT || (this.SPHT = new T.SphereGeometry(1, 10, 7));
     const box = style === 'boxing', sumo = style === 'sumo', lava = style === 'lava', tower = style === 'tower', rail = style === 'rail', sea = style === 'sea';
@@ -4216,6 +4324,38 @@ Object.assign(R3, {
       const outer = new T.Mesh(new T.TorusGeometry(P - .22, .13, 8, 90), this.M('#cdb46c')); outer.rotation.x = Math.PI / 2; outer.position.y = .07; g.add(outer);
       [-1, 1].forEach(s => { const l = new T.Mesh(new T.BoxGeometry(.12, .02, .8), this.M('#ffffff')); l.position.set(s * .7, .02, 0); g.add(l); });
       colR = P * 1.02;
+    } else if (style === 'west') {
+      // 서부 사막: 석양, 메사, 선인장, 마을, 회전초
+      const ground = new T.Mesh(new T.CircleGeometry(320, 48), this.M('#e7c08a')); ground.rotation.x = -Math.PI / 2; ground.position.y = -.01; g.add(ground);
+      const dirt = new T.Mesh(new T.CircleGeometry(RA + 3, 40), this.M('#d9ae78')); dirt.rotation.x = -Math.PI / 2; dirt.position.y = .005; g.add(dirt);
+      const sunM = new T.MeshBasicMaterial({ color: '#ffb347', fog: false }), glowM = new T.MeshBasicMaterial({ color: '#ffd8a0', transparent: true, opacity: .35, fog: false, depthWrite: false });
+      const sun = new T.Mesh(new T.CircleGeometry(11, 40), sunM); sun.position.set(-150, 7, 0); sun.rotation.y = Math.PI / 2; g.add(sun);
+      const glow = new T.Mesh(new T.CircleGeometry(20, 40), glowM); glow.position.set(-151, 7, 0); glow.rotation.y = Math.PI / 2; g.add(glow);
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2 + rnd(-.15, .15), rr = rnd(80, 160), m = new T.Group(); if (Math.cos(a) < -.8) continue; // 해가 지는 쪽은 비워 둠 m.position.set(Math.cos(a) * rr, 0, Math.sin(a) * rr); g.add(m);
+        let y = 0; const w0 = rnd(8, 16); for (let k = 0; k < 3; k++) { const hh = rnd(4, 10), w = w0 * (1 - k * .22); const c = new T.Mesh(new T.CylinderGeometry(w * .92, w, hh, 7), this.M(k % 2 ? '#b8562f' : '#cc6a3a')); c.position.y = y + hh / 2; y += hh; c.rotation.y = rnd(0, 3); m.add(c); } }
+      const cactus = (x, z, s) => { const c = new T.Group(); c.position.set(x, 0, z); c.scale.setScalar(s); g.add(c); const gm = this.M('#4f8f4a');
+        const tr = this.part(new T.CylinderGeometry(.28, .32, 3, 8), gm, .04, c); tr.position.y = 1.5;
+        [[1, 1.2, 1.1], [-1, 1.6, .9]].forEach(([sd, y, h2]) => { const ar = this.part(new T.CylinderGeometry(.18, .2, .7, 8), gm, .04, c); ar.rotation.z = Math.PI / 2; ar.position.set(sd * .5, y, 0); const up = this.part(new T.CylinderGeometry(.18, .2, h2, 8), gm, .04, c); up.position.set(sd * .82, y + h2 / 2, 0); }); };
+      for (let i = 0; i < 26; i++) { const a = rnd(0, 6.283), rr = rnd(RA + 6, 55); cactus(Math.cos(a) * rr, Math.sin(a) * rr, rnd(.8, 1.4)); }
+      for (let i = 0; i < 30; i++) { const a = rnd(0, 6.283), rr = rnd(RA + 3, 60); const r = this.part(new T.DodecahedronGeometry(.5, 0), this.M(i % 2 ? '#b99a74' : '#a8865f'), .04, g); r.position.set(Math.cos(a) * rr, .15, Math.sin(a) * rr); r.scale.set(rnd(.5, 1.6), rnd(.4, .9), rnd(.5, 1.4)); }
+      // 서부 마을 건물 (해 반대쪽)
+      const sign = txt => { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d'); x.fillStyle = '#f3e2bf'; x.fillRect(0, 0, 256, 64); x.fillStyle = '#5a3a22'; x.font = 'bold 40px Georgia, serif'; x.textAlign = 'center'; x.fillText(txt, 128, 46); return new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv) }); };
+      [['SALOON', -9], ['SHERIFF', 0], ['BANK', 9]].forEach(([tx, z0], i) => { const b = new T.Group(); b.position.set(RA + 16, 0, z0 * 1.3); g.add(b);
+        const body = this.part(new T.BoxGeometry(5, 4.2, 7), this.M(['#a86f45', '#c08a5a', '#9a6440'][i]), .03, b); body.position.y = 2.1;
+        const front = this.part(new T.BoxGeometry(.3, 5.4, 7.4), this.M(['#8a5534', '#a5713f', '#7d4c2e'][i]), .03, b); front.position.set(-2.6, 2.7, 0);
+        const sg = new T.Mesh(new T.PlaneGeometry(5, 1.25), sign(tx)); sg.rotation.y = -Math.PI / 2; sg.position.set(-2.77, 4.5, 0); b.add(sg);
+        const door = new T.Mesh(new T.BoxGeometry(.05, 1.9, 1.3), this.M('#4a2e1c')); door.position.set(-2.78, .95, 0); b.add(door);
+        [-2.4, 2.4].forEach(zz => { const w = new T.Mesh(new T.BoxGeometry(.05, 1, 1), this.M('#ffe0a0')); w.position.set(-2.78, 2.4, zz); b.add(w); });
+        const porch = this.part(new T.BoxGeometry(1.6, .15, 7.4), this.M('#7a5234'), .03, b); porch.position.set(-3.4, 2.9, 0);
+        [-3.4, 3.4].forEach(zz => { const p = this.part(this.CYL, this.M('#6b4529'), .03, b); p.scale.set(.08, 2.9, .08); p.position.set(-4.1, 1.45, zz); }); });
+      // 회전초
+      this.tumbles = [];
+      const twG = new T.IcosahedronGeometry(.55, 1), twE = new T.EdgesGeometry(twG);
+      for (let i = 0; i < 8; i++) { const tg = new T.Group(); tg.add(new T.LineSegments(twE, new T.LineBasicMaterial({ color: '#7a5a30' })));
+        const inn = new T.Mesh(twG, new T.MeshBasicMaterial({ color: '#b48a52', transparent: true, opacity: .45, depthWrite: false })); inn.scale.setScalar(.85); tg.add(inn);
+        const tw2 = new T.LineSegments(twE, new T.LineBasicMaterial({ color: '#9a7440' })); tw2.scale.setScalar(.7); tw2.rotation.set(1, .5, .2); tg.add(tw2);
+        g.add(tg); this.tumbles.push({ g: tg, x: rnd(-30, 30), z: rnd(-45, 45), sp: rnd(2.2, 4), ph: rnd(0, 6), s: rnd(.8, 1.3) }); }
+      colR = 0;
     } else if (style === 'pool') {
       // 야외 수영장: 레인마다 한 명, 레인 줄, 출발대, 결승 벽의 터치판
       const L = POOL.L, HW = RA, n = Math.round(HW * 2 / POOL.LW);
@@ -4470,7 +4610,7 @@ Object.assign(R3, {
       const eg = new T.BufferGeometry(); eg.setAttribute('position', new T.BufferAttribute(ea, 3));
       this.embers = new T.Points(eg, new T.PointsMaterial({ color: '#ffb347', size: .2, transparent: true, opacity: .9, depthWrite: false, blending: T.AdditiveBlending })); g.add(this.embers);
     }
-    if (!box && !lava && !tower && !rail && !sea && style !== 'pool' && style !== 'hwy') {
+    if (!box && !lava && !tower && !rail && !sea && style !== 'pool' && style !== 'hwy' && style !== 'west') {
       // 일본풍 소품
       const sakura = (p, x, y, z, s) => { const tr = this.part(this.CYL, this.M('#7a5a46'), .04, p); tr.scale.set(.18 * s, 1.6 * s, .18 * s); tr.position.set(x, y + .8 * s, z);
         [['#ffb7c9', 0, 2, 0, 1.3], ['#ffc8d6', .8, 1.8, .4, 1], ['#f7a6bd', -.7, 1.9, -.3, 1.05], ['#ffd6e1', .1, 2.6, -.2, .9]].forEach(([c, dx, dy, dz, r]) => { const b = this.part(this.SPHL, this.M(c), .05, p); b.scale.setScalar(r * s); b.position.set(x + dx * s, y + dy * s, z + dz * s); }); };
@@ -4646,6 +4786,24 @@ Object.assign(R3, {
   makeDueler(h, style) {
     if (style === 'sea') { const f = this.makeFish(h); f.style = style; return f; }
     if (style === 'hwy') return this.makeCritter(h);
+    if (style === 'west') {
+      // 보안관: 카우보이모자, 조끼, 별 배지, 두건, 권총
+      const m = this.makeRunner(h, 'west'), B = m.body, hatC = ['#8a5a34', '#3a2a22', '#c9a06a', '#6b4a30'][h.id % 4];
+      const brim = this.part(this.CYL, this.M(hatC), .04, B); brim.scale.set(.82, .05, .78); brim.position.set(-.04, 1.44, 0); brim.rotation.z = .1;
+      const crown = this.part(this.CYL, this.M(hatC), .04, B); crown.scale.set(.42, .36, .4); crown.position.set(-.06, 1.64, 0); crown.rotation.z = .1;
+      const band = this.part(this.CYL, this.M('#2b2622'), 0, B); band.scale.set(.43, .07, .41); band.position.set(-.05, 1.5, 0); band.rotation.z = .1;
+      const vest = this.part(this.SPH, this.M('#7a4b2a'), .03, B); vest.scale.set(.37, .3, .355); vest.position.y = .45;
+      const gap = this.part(new THREE.BoxGeometry(.06, .3, .12), this.M(h.kc), 0, B); gap.position.set(.355, .48, 0);
+      const st = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2, r = i % 2 ? .045 : .11; if (i) st.lineTo(Math.cos(a) * r, -Math.sin(a) * r); else st.moveTo(Math.cos(a) * r, -Math.sin(a) * r); }
+      const star = new THREE.Mesh(this.STARG || (this.STARG = new THREE.ShapeGeometry(st)), new THREE.MeshBasicMaterial({ color: '#ffd24d', side: THREE.DoubleSide })); star.rotation.y = Math.PI / 2; star.position.set(.37, .55, .15); B.add(star);
+      const scarf = this.part(this.SPH, this.M('#d9473b'), .03, B); scarf.scale.set(.3, .08, .3); scarf.position.y = .74;
+      const gun = new THREE.Group(); gun.position.y = -.34; m.aR.add(gun);
+      const bar = this.part(new THREE.BoxGeometry(.06, .36, .06), this.M('#3b3f46'), .05, gun); bar.position.y = -.2;
+      const drum = this.part(this.CYL, this.M('#55595f'), .05, gun); drum.scale.set(.06, .1, .06); drum.position.y = -.06; drum.rotation.x = Math.PI / 2;
+      const grip = this.part(new THREE.BoxGeometry(.07, .16, .08), this.M('#6b4529'), .05, gun); grip.position.set(-.06, .03, 0); grip.rotation.z = .6;
+      const fl = new THREE.Mesh(this.SPHL, new THREE.MeshBasicMaterial({ color: '#ffd84d' })); fl.scale.set(.12, .2, .12); fl.position.y = -.44; fl.visible = false; gun.add(fl);
+      m.gun = gun; m.flash = fl; m.style = style; return m;
+    }
     if (style === 'pool') {
       const m = this.makeRunner(h, 'pool');
       const cap = this.part(this.HALF, this.M(h.kc), .04, m.body); cap.scale.set(.575, .36, .555); cap.position.set(-.06, 1.16, 0); cap.rotation.z = .32;
@@ -4693,6 +4851,56 @@ Object.assign(R3, {
     const live = new Set();
     for (const car of H.cars) { live.add(car.id); let g = cm.get(car.id); if (!g) { g = this.makeCar2(car); cm.set(car.id, g); } g.position.set(car.r * C, 0, car.z); g.rotation.y = car.dir > 0 ? 0 : Math.PI; const R = hwyRow(H, car.r); g.position.y = R && R.fallT != null ? -6 * (D.t - R.fallT) ** 2 : 0; }
     for (const [id, g] of cm) if (!live.has(id)) { this.scene.remove(g); cm.delete(id); }
+  },
+  renderWest(A, D, t, dt) {
+    const T = THREE, W = D.west || {};
+    // 회전초: 바람에 굴러다님. 마지막 결투 초 세기 때는 두 사람 사이로 하나가 지나감
+    for (const [i, w] of (this.tumbles || []).entries()) {
+      if (i === 0 && W.ph === 'count' && W.tw != null) { const q = (D.t - W.tw) / 3.3; w.x = W.cx - 1 + Math.sin(q * 2) * .4; w.z = -9 + q * 18; }
+      else { w.z += w.sp * dt; if (w.z > 45) { w.z = -45; w.x = rnd(-30, 30); } }
+      w.g.position.set(w.x, .55 * w.s + Math.abs(Math.sin(t * 3 + w.ph)) * .45, w.z); w.g.scale.setScalar(w.s); w.g.rotation.x += dt * w.sp * 1.6; w.g.rotation.y += dt * .4;
+    }
+    // 총구 섬광 · 총알 자국 · 연기
+    const shots = D.shots || [];
+    const tm = this.tracers || (this.tracers = []);
+    for (const s2 of shots) { if (s2.drawn || A.replay) continue; s2.drawn = true; if (D.t - s2.t > .3) continue;
+      const a = s2.a, v = s2.v, p0 = new T.Vector3(a.x + Math.cos(a.ang) * .9, 1.15, a.z + Math.sin(a.ang) * .9), p1 = new T.Vector3(v.x, .9, v.z);
+      const ln = new T.Line(new T.BufferGeometry().setFromPoints([p0, p1]), new T.LineBasicMaterial({ color: '#fff3c0', transparent: true, opacity: .9 })); this.scene.add(ln); tm.push({ m: ln, t0: t });
+      for (let k = 0; k < 3; k++) { const pm = new T.Mesh(this.SPHL, new T.MeshBasicMaterial({ color: '#e8e2d6', transparent: true, opacity: .8, depthWrite: false })); pm.position.copy(p0).add(new T.Vector3(rnd(-.1, .1), rnd(0, .2), rnd(-.1, .1))); pm.scale.setScalar(.18); this.scene.add(pm); this.puffs.push({ m: pm, t0: t + k * .05 }); } }
+    this.tracers = tm.filter(o => { if (t - o.t0 > .12) { this.scene.remove(o.m); return false; } return true; });
+  },
+  poseWest(h, m, t, D) {
+    const g = m.g, W = D.west || {};
+    g.position.set(h.x, h.y + dropLift(h, t), h.z); g.rotation.order = 'YXZ'; g.rotation.set(0, -h.ang, h.lie || 0); g.scale.setScalar(1);
+    const p = t * 9 + h.id, mv = h.moving && h.alive;
+    m.body.position.y = mv ? Math.abs(Math.sin(p)) * .08 : 0;
+    m.fL.position.set(mv ? .2 * Math.sin(p + Math.PI) : .05, .09, .15); m.fR.position.set(mv ? .2 * Math.sin(p) : -.05, .09, -.15);
+    const aq = h.aimQ || 0;
+    let ar = .25 + aq * 1.33 + (mv ? Math.sin(p) * .3 * (1 - aq) : 0), al = .35 + (mv ? -Math.sin(p) * .4 : 0);
+    if (this.intro) { ar = .25 + Math.abs(Math.sin(t * 2 + h.id)) * 1.2; }
+    if (!h.alive && h.st !== 'win') { ar = 2.4; al = 2.2; }
+    if (W.ph === 'sunset' && h === W.wi) { ar = .2 + Math.sin(p) * .25; al = .3 - Math.sin(p) * .25; }
+    m.aR.rotation.z = ar; m.aL.rotation.z = al;
+    if (m.flash) m.flash.visible = D.t - (h.flashT || -9) < .09;
+  },
+  westCam(A, D, want, look, dt, t, showWin, byId, k) {
+    const W = D.west, R = D.RA;
+    if (this.intro) {
+      this.introCam(want, look, s => { const a = this.intro.a0 + 1.4 * s; return { p: [Math.cos(a) * R * 4, 22 - 12 * s, Math.sin(a) * R * 4], l: [0, 0, 0] }; },
+        s => { const a = this.intro.a0 + 1.4 + Math.PI * 2 * s; return { p: [Math.cos(a) * R * .35, 1.7, Math.sin(a) * R * .35], l: [Math.cos(a) * R, 1.2, Math.sin(a) * R] }; });
+      return k;
+    }
+    const f = A.follow != null ? byId(A.follow) : null;
+    if (f && !D.cine && W.ph !== 'sunset') { want.set(f.x - Math.cos(f.ang) * 5, 3.2, f.z - Math.sin(f.ang) * 5); look.set(f.x, 1.1, f.z); return 1 - Math.exp(-dt * 3); }
+    const a = W.A, b = W.B, face = (h, o) => { const fx = Math.cos(h.ang), fz = Math.sin(h.ang); want.set(h.x + fx * 2.7 + fz * .45, 1.4, h.z + fz * 2.7 - fx * .45); look.set(h.x, 1.3, h.z); this.snapCam = !!o; return 1 - Math.exp(-dt * 8); };
+    if (W.ph === 'fwalk') { want.set(W.cx + 13, 2.4, 0); look.set(W.cx, 1, 0); return 1 - Math.exp(-dt * 2); }
+    if (W.ph === 'faceA') return face(a, D.t - W.t0 < .05);
+    if (W.ph === 'faceB') return face(b, D.t - W.t0 < .05);
+    if (W.ph === 'count' || W.ph === 'draw' || W.ph === 'after2') { if (D.t - W.t0 < .05 && W.ph === 'count') this.snapCam = true; want.set(W.cx + 10.5, 1.35, 0); look.set(W.cx - 6, 1.4, 0); return 1 - Math.exp(-dt * 3); }
+    if (W.ph === 'sunset' || (showWin && W.wi)) { const w = W.wi || D.winner; want.set(w.x + 7, 1.6, w.z + 1.2); look.set(w.x - 12, 1.8, w.z); return 1 - Math.exp(-dt * 2); }
+    if (showWin) { const w = D.winner, a2 = Math.sin(t * .4) * .7; want.set(w.x + Math.cos(a2) * 6, 3, w.z + Math.sin(a2) * 6); look.set(w.x, 1.1, w.z); return 1 - Math.exp(-dt * 3); }
+    const an = t * .05 + .5, rr = R * 2.1 + 6;
+    want.set(Math.cos(an) * rr, R * .9 + 5, Math.sin(an) * rr); look.set(0, .2, 0); return 1 - Math.exp(-dt * 2.5);
   },
   poseCritter(h, m, t, D) {
     const g = m.g, b = m.body;
@@ -4793,6 +5001,7 @@ Object.assign(R3, {
     }
     if (style === 'hwy' && D.hwy) this.renderHwy(A, D, t, dt);
     if (style === 'pool') this.renderDolphins(A, D, t);
+    if (style === 'west') this.renderWest(A, D, t, dt);
     if (this.puffs.length) this.puffs = this.puffs.filter(p => { const q = (t - p.t0) / 1.4; if (q >= 1) { this.scene.remove(p.m); p.m.material.dispose(); return false; } p.m.position.y += dt * 1.6; p.m.scale.setScalar(.4 + q * 1.6); p.m.material.opacity = .85 * (1 - q); return true; });
     if (this.boat && D.sea) {
       const S2 = D.sea, hk = S2.hook, F = this.fisher;
@@ -4886,6 +5095,7 @@ Object.assign(R3, {
       if (style === 'sea') { this.poseFish(h, m, t); continue; }
       if (style === 'pool') { this.poseSwimmer(h, m, t, D); continue; }
       if (style === 'hwy') { this.poseCritter(h, m, t, D); continue; }
+      if (style === 'west') { this.poseWest(h, m, t, D); continue; }
       const intro = !!this.intro, win = h.st === 'win';
       const uq = h.uq != null ? h.uq : -1, spin = style === 'sword' && uq >= 0 ? uq * Math.PI * 4 : 0;
       m.g.position.set(h.x, h.y + dropLift(h, t) + (style === 'boxing' && uq > .35 && uq < .7 ? Math.sin((uq - .35) / .35 * Math.PI) * .6 : 0), h.z); m.g.rotation.order = 'YXZ';
@@ -4967,7 +5177,7 @@ Object.assign(R3, {
       if (q.g.position.y <= .08) { q.g.position.y = .08; q.vy = 0; q.g.rotation.set(Math.PI / 2, 0, q.g.rotation.z); }
     }
     // 우승 빛기둥
-    this.beam.visible = showWin && style !== 'sea' && style !== 'pool'; if (showWin && style !== 'sea' && style !== 'pool') { this.beam.position.set(W.x, W.y + 12, W.z); this.beam.material.opacity = .14 + .05 * Math.sin(t * 5); this.beam.rotation.y += dt; }
+    this.beam.visible = showWin && style !== 'sea' && style !== 'pool' && style !== 'west'; if (showWin && style !== 'sea' && style !== 'pool') { this.beam.position.set(W.x, W.y + 12, W.z); this.beam.material.opacity = .14 + .05 * Math.sin(t * 5); this.beam.rotation.y += dt; }
     // 궁극기 효과: 빛 고리가 퍼짐
     for (const u of D.ultFx.splice(0)) {
       const ring = new T.Mesh(new T.TorusGeometry(1, .12, 8, 48), new T.MeshBasicMaterial({ color: u.c, transparent: true, opacity: .9, depthWrite: false }));
@@ -4986,7 +5196,8 @@ Object.assign(R3, {
     const byId = id => A.humans.find(h => h.id === id);
     const lf = style === 'lava' && A.follow == null && !D.ended && !A.replay && D.focus ? D.focus.ids.map(byId).filter(h => h && h.alpha > 0) : [];
     const alive = A.humans.filter(h => h.alive);
-    if (style === 'pool') k = this.poolCam(A, D, want, look, dt, t, showWin, byId, k);
+    if (style === 'west') k = this.westCam(A, D, want, look, dt, t, showWin, byId, k);
+    else if (style === 'pool') k = this.poolCam(A, D, want, look, dt, t, showWin, byId, k);
     else if (style === 'hwy') k = this.hwyCam(A, D, want, look, dt, t, showWin, byId, k);
     else if (style === 'sea') k = this.seaCam(A, D, want, look, dt, t, showWin, byId, k);
     else if (style === 'rail') k = this.railCam(A, D, want, look, dt, t, showWin, byId, k);
@@ -5176,7 +5387,7 @@ function startDuel(style = 'sword') {
   arena.onDuelDone = () => { DU.done = true; buildResultsDuel(); $('#zNext').hidden = false; setStatus('경기 종료 · 결과 확정', 'done'); showResults(); };
   arena.shuffleDuel(); DU.keep = 1; arena.duel.keep = 1; $('#keepN').textContent = '1'; $('#keepBox').hidden = false;
   $('#zNext').hidden = true; hideLT(); $('#startHud').hidden = false;
-  MUSIC.use(style === 'sumo' ? 'music-sumo.mp3' : style === 'boxing' ? 'music-boxing.mp3' : style === 'lava' ? 'music-lava.mp3' : style === 'tower' ? 'music-tower.mp3' : style === 'rail' ? 'music-rail.mp3' : style === 'sea' || style === 'pool' ? 'music-sea.mp3' : style === 'hwy' ? 'music-race.mp3' : 'music-duel.mp3'); MUSIC.reset();
+  MUSIC.use(style === 'sumo' ? 'music-sumo.mp3' : style === 'boxing' ? 'music-boxing.mp3' : style === 'lava' ? 'music-lava.mp3' : style === 'tower' ? 'music-tower.mp3' : style === 'rail' ? 'music-rail.mp3' : style === 'sea' ? 'music-sea.mp3' : style === 'pool' ? 'music-pool.mp3' : style === 'hwy' ? 'music-hwy.mp3' : style === 'west' ? 'music-west.mp3' : 'music-duel.mp3'); MUSIC.reset();
   if (style === 'pool') $('#keepBox').hidden = true;
   setStatus(`${DSTYLE[style].name} 준비 · ${DU.n}명`, null);
 }
@@ -5293,7 +5504,7 @@ function lowerThird(kind, tagText, name, sub, ms) {
   return new Promise(res => { ltSkip = () => { clearTimeout(ltT); ltSkip = null; res(); }; ltT = setTimeout(() => { ltSkip = null; res(); }, ms); });
 }
 function hideLT() { $('#lt').hidden = true; clearTimeout(ltT); ltSkip = null; }
-function cancelRun() { RUN++; $('#keepBox').hidden = true; $('#skipHud').hidden = true; if (R3.introSkip) { const f = R3.introSkip; R3.introSkip = null; f(); } SFX.screech(0); if (arena.replay) arena.endReplay(false); R3.intro = null; arena.hold = false; $('#startHud').hidden = true; if (arena.slow) arena.endSlow(); MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
+function cancelRun() { RUN++; $('#keepBox').hidden = true; $('#skipHud').hidden = true; if (R3.introSkip) { const f = R3.introSkip; R3.introSkip = null; f(); } SFX.screech(0); if (arena.replay) arena.endReplay(false); R3.intro = null; arena.hold = false; $('#startHud').hidden = true; if (arena.slow) arena.endSlow(); arena.wrap.classList.remove('slowmo'); MUSIC.stop(); SFX.humStop(); hideOverlay(); hideLT(); document.body.classList.remove('alarm'); if (Z) Z.auto = false; }
 
 async function countdown(label, tok) {
   document.body.classList.add('alarm'); arena.panic = true;
@@ -5343,6 +5554,10 @@ document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value
 document.querySelectorAll('input[name=speed]').forEach(r => { r.checked = +r.value === +S.speed; r.addEventListener('change', () => { S.speed = +r.value; store.set('zs-speed', S.speed); }); });
 $('#lite').checked = !!S.lite;
 $('#lite').addEventListener('change', e => { S.lite = e.target.checked; store.set('zs-lite', S.lite); document.body.classList.toggle('lite', S.lite); });
+$('#westBtn').addEventListener('click', () => {
+  if (S.roster.length < 2) { toast('추첨하려면 최소 2명이 필요합니다'); $('#one').focus(); return; }
+  SFX.init(); startDuel('west');
+});
 ['poolBtn', 'hwyBtn'].forEach((id, i) => $('#' + id).addEventListener('click', () => {
   if (S.roster.length < 2) { toast('추첨하려면 최소 2명이 필요합니다'); $('#one').focus(); return; }
   SFX.init(); startDuel(i ? 'hwy' : 'pool');
@@ -5385,7 +5600,10 @@ function makeMapShots() {
       Rr.curMode = null; Rr.setMode('race'); const p = Rr.tpos(14, 0), q = Rr.tpos(34, 0);
       cam.position.set(p.x - p.tz * 9, 11, p.z + p.tx * 9); cam.lookAt(q.x, 0, q.z);
     } else {
-      Rr.curMode = null; Rr.buildDuel(kind === 'tower' ? 140 : kind === 'sea' ? 18 : kind === 'rail' ? railXL(14) : kind === 'pool' ? poolHW(8) : kind === 'hwy' ? 13 : 6.5, kind); Rr.setMode('duel'); Rr.duelG.visible = true;
+      Rr.curMode = null; Rr.buildDuel(kind === 'tower' ? 140 : kind === 'sea' ? 18 : kind === 'rail' ? railXL(14) : kind === 'pool' ? poolHW(8) : kind === 'hwy' ? 13 : kind === 'west' ? westR(8) : 6.5, kind);
+      if (kind === 'west') { const tmp = []; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, m = Rr.makeDueler({ id: 950 + i, fur: FURS[i % FURS.length], ears: i % 4, kc: KART_COLORS[i % 8] }, 'west'); m.g.position.set(Math.cos(a) * 4.6, 0, Math.sin(a) * 4.6); m.g.rotation.y = -(a + Math.PI); m.aR.rotation.z = i % 2 ? 1.55 : .3; tmp.push(m.g); }
+        (Rr.tumbles || []).forEach((w, i) => { w.g.position.set(-2 + i * 3, .6, 5 - i * 2); });
+        cam.position.set(11, 4.5, 8); cam.lookAt(-6, 1.5, -1); Rr.renderer.render(Rr.scene, cam); tmp.forEach(o => Rr.scene.remove(o)); return Rr.renderer.domElement.toDataURL('image/jpeg', .82); } Rr.setMode('duel'); Rr.duelG.visible = true;
       if (kind === 'pool') { const sw = []; for (let i = 0; i < 8; i++) { const m = Rr.makeDueler({ id: 900 + i, fur: FURS[i % FURS.length], ears: i % 4, kc: KART_COLORS[i % 8] }, 'pool'); Rr.poseSwimmer({ id: i, k: 'swim', st2: ['free', 'back', 'fly', 'breast'][i % 4], x: 8 + (i * 5) % 9, y: -.35, z: (i - 3.5) * POOL.LW, ang: 0, spm: 7 }, m, i * .7, {}); sw.push(m.g); }
         const dg = Rr.makeDolphin(); dg.position.set(13.5, -.2, (6 - 3.5) * POOL.LW); sw.push(dg); cam.position.set(1, 9, 11); cam.lookAt(13, -1, 0); Rr.renderer.render(Rr.scene, cam); sw.forEach(o => Rr.scene.remove(o)); return Rr.renderer.domElement.toDataURL('image/jpeg', .82); }
       if (kind === 'hwy') { const H = { W: 13, rows: [], off: 8 }; hwyGen(H, 14); const tmp = []; for (let r = -2; r <= 12; r++) tmp.push(Rr.hwyBuildRow(H, hwyRow(H, r)));

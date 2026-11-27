@@ -8,7 +8,7 @@
 2. **맵 선택**에서 원하는 맵을 고릅니다. 버튼마다 실제 맵 사진이 어둡게 깔려 있고, 마우스를 올리면 밝아집니다.
 3. 출발선에서 **자리 섞기**로 서 있는 자리를 무작위로 바꾸고, **시작**을 누르면 카메라가 맵과 선수 전원을 훑은 뒤 끝까지 자동으로 진행됩니다. 훑는 장면은 **인트로 건너뛰기**로 넘길 수 있습니다.
 
-실제 날씨(위치 허용 시 현재 위치, 아니면 서울)에 따라 비·눈·안개·흐림·밤이 장면에 반영됩니다(실내인 링, 화산 지대인 용암지대, 바다 제외). 날씨 표시에는 지역 이름이 함께 나오고(예: 🌧️ 목포시 비 · 5°C), 15분마다 날씨를 다시 확인합니다. 1x / 2x / 4x 버튼으로 빨리 감을 수 있고, 오른쪽 위 순위에서 이름을 누르면 카메라가 그 친구를 따라가며 그 친구의 효과음이 크게 들립니다. 끝나면 결과 창에서 순위를 확인합니다.
+실제 날씨(위치 허용 시 현재 위치, 아니면 서울)에 따라 비·눈·안개·흐림·밤이 장면에 반영됩니다(실내인 링, 화산 지대인 용암지대, 바다 제외). 날씨 표시에는 지역 이름이 함께 나오고(예: 🌧️ 목포시 비 · 5°C), 30분마다 날씨를 다시 확인합니다(날씨 표시 아래에 받은 시각이 나옵니다). 1x / 2x / 4x 버튼으로 빨리 감을 수 있고, 오른쪽 위 순위에서 이름을 누르면 카메라가 그 친구를 따라가며 그 친구의 효과음이 크게 들립니다. 끝나면 결과 창에서 순위를 확인합니다.
 
 ## 숲 (고블린 탈출)
 
@@ -107,19 +107,20 @@
 ## 기능
 
 - 이름 한 명씩 입력 / 여러 명 한 번에 붙여넣기 (줄바꿈·쉼표·띄어쓰기 구분, 중복 제거)
-- 맵별 배경음악(`music-forest.mp3`, `music-race.mp3`, `music-duel.mp3`, `music-sumo.mp3`, `music-boxing.mp3`, `music-lava.mp3`, `music-tower.mp3`, `music-rail.mp3`, `music-sea.mp3`, `music-pool.mp3`, `music-hwy.mp3`, `music-west.mp3`, `music-rope.mp3`, `music-chair.mp3`)과 효과음, 기차가 오는 소리(`sfx-train-approach.wav`) · 기차 경적(`sfx-train-horn.wav`), 낙하 비명(`scream.mp4`, 결투장 · 도효에서만), 소리 켜기·끄기, 전체 화면
+- 맵별 배경음악(`music-forest.mp3`, `music-race.mp3`, `music-duel.mp3`, `music-sumo.mp3`, `music-boxing.mp3`, `music-lava.mp3`, `music-tower.mp3`, `music-rail.mp3`, `music-sea.mp3`, `music-pool.mp3`, `music-hwy.mp3`, `music-west.mp3`, `music-rope.mp3`, `music-chair.mp3`)과 효과음, 기차가 오는 소리(`sfx-train-approach.wav`) · 기차 경적(`sfx-train-horn.wav`), 낙하 비명(녹음 파일 없이 직접 만든 합성음, 결투장 · 도효에서만), 소리 켜기·끄기, 전체 화면
+- 경기 화면 왼쪽 아래 "이름 크기 변경" 버튼: 화면 속 이름표와 오른쪽 이름 목록(이름 · 번호) 크기를 각각 50~250%로 조정 (이 기기에 저장)
 - 결과 복사, 다시 뽑기, 홈화면으로
 - 저사양 기기용 간소화 연출, PC·태블릿 반응형
 
 ## 개인정보
 
 - 입력한 명단은 사용하는 기기의 브라우저(localStorage)에만 저장되고, 서버나 외부 서비스로 보내지 않습니다.
-- 위치는 위치 권한을 허용했을 때만 날씨 확인에 쓰며, 소수 첫째 자리(약 10km 단위)로 줄인 좌표만 날씨 서비스(Open-Meteo)와 지역 이름 서비스(BigDataCloud)에 보냅니다. 위치를 저장하지 않습니다.
+- 위치는 위치 권한을 허용했을 때만 날씨 확인에 쓰며, 소수 첫째 자리(약 10km 단위)로 줄인 좌표만 날씨 서비스(노르웨이 기상청 MET Norway)와 지역 이름 서비스(BigDataCloud)에 보냅니다. 위치를 저장하지 않습니다.
 - 회원가입, 로그인, 광고, 분석 도구가 없습니다.
 
 ## 출처와 라이선스
 
-- 날씨 데이터: [Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/))
+- 날씨 데이터: Data from [MET Norway](https://api.met.no/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). 날씨 기호를 맑음 · 흐림 · 안개 · 비 · 눈 · 뇌우 · 밤으로 단순화해 씁니다.
 - 지역 이름: [BigDataCloud](https://www.bigdatacloud.com/) 무료 클라이언트 역지오코딩 API
 - 3D 그래픽: [three.js](https://threejs.org/) r128 (MIT)
 - 글꼴: Jua, Gowun Dodum ([Google Fonts](https://fonts.google.com/), SIL Open Font License)

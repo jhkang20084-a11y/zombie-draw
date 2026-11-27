@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>WHOZ · Who is the winner?</title>
+<title>WHOZ 후즈 · 교실 랜덤 추첨 게임 (발표 순서 뽑기)</title>
 <meta name="description" content="WHOZ(후즈)는 교실에서 쓰는 무료 랜덤 추첨 웹앱입니다. 학생 이름을 넣으면 고블린 탈출, 카트 레이스, 스모, 복싱 등 3D 게임으로 발표 순서와 당첨자를 공정하게 뽑아 줍니다.">
 <meta name="keywords" content="랜덤 추첨, 발표 순서 뽑기, 교실 추첨, 이름 뽑기, 학급 게임, 사다리 대신, WHOZ, 후즈">
 <meta name="google-site-verification" content="Q85-EBwwpsGRoWTjRYe9WfKZgjeqBJ7uPaAp1sKUfiY">
 <link rel="canonical" href="https://whoz-draw.web.app/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://whoz-draw.web.app/">
-<meta property="og:title" content="WHOZ 후즈 · 교실용 랜덤 추첨 게임">
+<meta property="og:title" content="WHOZ 후즈 · 교실 랜덤 추첨 게임 (발표 순서 뽑기)">
 <meta property="og:description" content="학생 이름을 넣으면 3D 게임으로 발표 순서와 당첨자를 공정하게 뽑아 주는 무료 교실 추첨 웹앱">
 <meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="summary">
@@ -217,18 +217,26 @@ body.staging{overflow:hidden}
 #arena{display:block;width:100%;height:420px}
 .arena-wrap canvas.gl{display:block;width:100%}
 #arenaLabels{position:absolute;inset:0;width:100%;pointer-events:none}
-.rank{position:absolute;top:10px;right:12px;max-height:calc(100% - 20px);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:flex-end;gap:0;font-family:var(--font-display);font-size:16px;line-height:1.25;color:#fff;
+.rank{position:absolute;top:10px;right:12px;max-height:calc(100% - 20px);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:flex-end;gap:0;font-family:var(--font-display);font-size:calc(16px * var(--rs, 1));line-height:1.25;color:#fff;
   text-shadow:-1.5px -1.5px 0 var(--ink),1.5px -1.5px 0 var(--ink),-1.5px 1.5px 0 var(--ink),1.5px 1.5px 0 var(--ink),0 2.5px 0 var(--ink);scrollbar-width:none}
 .rank::-webkit-scrollbar{display:none}
-.rank .ttl{font-size:12px;margin-bottom:2px;opacity:.95}
+.rank .ttl{font-size:.75em;margin-bottom:2px;opacity:.95}
 .rank button{background:none;border:0;padding:1px 2px;font:inherit;color:inherit;text-shadow:inherit;cursor:pointer;text-align:right;white-space:nowrap}
 .rank button:hover{color:var(--sun-pale)}
 .rank button .n{display:inline-block;min-width:1.9em;margin-right:4px;color:var(--sun)}
 .rank button.out{color:#e6dccb}
 .rank button.out .n{color:#e6dccb}
-.rank button.on{color:var(--sun);font-size:19px}
-.rank button.all{margin-top:4px;font-size:14px;color:var(--sun)}
-@media (max-width:560px){.rank{font-size:13px}.rank button.on{font-size:15px}}
+.rank button.on{color:var(--sun);font-size:1.19em}
+.rank button.all{margin-top:4px;font-size:.875em;color:var(--sun)}
+@media (max-width:560px){.rank{font-size:calc(13px * var(--rs, 1))}.rank button.on{font-size:1.15em}}
+.hud-bl{left:max(14px,env(safe-area-inset-left,0px));bottom:max(14px,env(safe-area-inset-bottom,0px));z-index:9}
+.sizer{position:absolute;left:0;bottom:56px;white-space:nowrap;display:grid;gap:8px;padding:10px 14px;background:rgba(255,250,240,.92);border:2.5px solid var(--ink);border-radius:18px;box-shadow:0 4px 0 var(--ink);font-family:var(--font-display);font-size:14px;color:var(--ink)}
+.sizer label{display:grid;grid-template-columns:96px 130px 44px;align-items:center;gap:8px}
+.sizer input[type=range]{width:130px;accent-color:var(--leaf-deep)}
+.sizer output{text-align:right;font-variant-numeric:tabular-nums}
+.sizebtn{min-height:40px;font-size:15px;padding:0 14px}
+.sizebtn[aria-expanded="true"]{background:var(--sun)}
+@media (max-width:560px){.sizer label{grid-template-columns:78px 100px 40px}.sizer input[type=range]{width:100px}}
 .lt{position:absolute;left:14px;top:72px;display:grid;justify-items:start;gap:4px;pointer-events:none;max-width:calc(100% - 28px)}
 .lt-tag{font-family:var(--font-display);font-size:14px;padding:3px 12px;background:var(--coral);color:#fff;border:2.5px solid var(--ink);border-radius:999px}
 .lt-name{font-family:var(--font-display);font-weight:400;font-size:clamp(34px,6vw,76px);line-height:1;padding:8px 20px 10px;background:var(--paper);border:3px solid var(--ink);border-radius:22px;box-shadow:0 5px 0 var(--ink);color:var(--ink);overflow-wrap:anywhere;max-width:100%}
@@ -400,7 +408,7 @@ details.mini[open] summary .label{visibility:hidden}
       <div class="go">
         <label class="check"><input type="checkbox" id="lite">저사양 기기용 간소화 연출 (입자 줄임)</label>
         <button class="btn primary big start gostart" id="goMaps" type="button">시작하기</button>
-        <p class="privacy">명단은 이 기기의 브라우저에만 저장되고 어디로도 보내지 않아요. 위치는 날씨 확인에만 쓰고, 약 10km 단위로만 날씨 서비스(Open-Meteo)와 지역 이름 서비스(BigDataCloud)에 보내요.</p>
+        <p class="privacy">명단은 이 기기의 브라우저에만 저장되고 어디로도 보내지 않아요. 위치는 날씨 확인에만 쓰고, 약 10km 단위로만 날씨 서비스(노르웨이 기상청 MET Norway)와 지역 이름 서비스(BigDataCloud)에 보내요.</p>
         <div class="go-row" hidden><button class="btn big start seab" id="poolBtn" type="button">수영장으로 출발</button><button class="btn big start road" id="hwyBtn" type="button">고속도로로 출발</button><button class="btn big start railb" id="westBtn" type="button">서부로 출발</button><button class="btn big start road" id="ropeBtn" type="button">운동장으로 출발</button><button class="btn big start lavab" id="chairBtn" type="button">의자뺏기 시작</button><button class="btn primary big start" id="startBtn" type="button">숲으로 출발</button><button class="btn big start road" id="raceBtn" type="button">도로로 출발</button><button class="btn big start duelb" id="duelBtn" type="button">결투장으로 출발</button><button class="btn big start sumob" id="sumoBtn" type="button">도효로 출발</button><button class="btn big start boxb" id="boxBtn" type="button">링으로 출발</button><button class="btn big start lavab" id="lavaBtn" type="button">용암지대로 출발</button><button class="btn big start towerb" id="towerBtn" type="button">타워로 출발</button><button class="btn big start railb" id="railBtn" type="button">철길로 출발</button><button class="btn big start seab" id="seaBtn" type="button">바다로 출발</button></div>
       </div>
     </section>
@@ -461,6 +469,13 @@ details.mini[open] summary .label{visibility:hidden}
     <button class="btn" id="zRedo" type="button">다시 뽑기</button>
     <button class="btn ghost" id="zHome" type="button">명단으로</button>
   </div>
+  <div class="hud hud-bl" id="sizeHud">
+    <button class="btn sizebtn" id="sizeBtn" type="button" aria-expanded="false" aria-controls="sizer">이름 크기 변경</button>
+    <div class="sizer" id="sizer" hidden>
+      <label>화면 속 이름 <input type="range" id="labelSize" min="50" max="250" step="10" aria-label="애니메이션 속 이름 크기"><output id="labelSizeV"></output></label>
+      <label>오른쪽 목록 <input type="range" id="rankSize" min="50" max="250" step="10" aria-label="오른쪽 이름 목록 크기"><output id="rankSizeV"></output></label>
+    </div>
+  </div>
   <div class="hud hud-br">
       <button class="icon-btn" id="soundBtn" aria-pressed="true" title="효과음 켜기/끄기" aria-label="효과음">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6" style="display:none"/></svg>
@@ -471,7 +486,7 @@ details.mini[open] summary .label{visibility:hidden}
   </div>
   <div class="hud hud-bc"><button class="btn gold big" id="zNext" type="button" hidden>결과 보기</button></div>
   <div class="wx" id="wxBadge" hidden></div>
-  <a class="wxsrc" id="wxSrc" href="https://open-meteo.com/" target="_blank" rel="noopener" hidden>Weather data by Open-Meteo.com</a>
+  <a class="wxsrc" id="wxSrc" href="https://api.met.no/doc/License" target="_blank" rel="noopener" title="Data from MET Norway (CC BY 4.0), 앱에 맞게 단순화함" hidden>날씨: MET Norway 자료</a>
   <div class="potg" id="potg" hidden><span class="potg-t">최고의 플레이</span><strong id="potgName"></strong></div>
   <div class="hud hud-skip" id="skipHud" hidden><button class="btn" id="skipBtn" type="button">인트로 건너뛰기 ▶▶</button></div>
   <div class="hud hud-start" id="startHud" hidden><div class="keep" id="keepBox" hidden>살아남을 인원 <button type="button" id="keepMinus" aria-label="줄이기">−</button><b id="keepN">1</b>명 <button type="button" id="keepPlus" aria-label="늘리기">+</button></div><button class="btn big" id="shuffleBtn" type="button">자리 섞기</button><button class="btn primary big" id="goBtn" type="button">시작</button></div>
@@ -533,19 +548,11 @@ const SFX = {
         this.ctx = new C(); const comp = this.ctx.createDynamicsCompressor();
         this.out = this.ctx.createGain(); this.out.gain.value = .6; this.out.connect(comp); comp.connect(this.ctx.destination);
       }
-      if (this.ctx.state === 'suspended') this.ctx.resume(); this.loadScream(); this.loadSamp('trainCome', 'sfx-train-approach.wav'); this.loadSamp('trainHorn', 'sfx-train-horn.wav');
+      if (this.ctx.state === 'suspended') this.ctx.resume(); this.loadSamp('trainCome', 'sfx-train-approach.wav'); this.loadSamp('trainHorn', 'sfx-train-horn.wav');
     } catch (e) {}
   },
   ok() { return this.on && this.ctx; },
-  // 떨어질 때 비명: 함께 올린 scream.mp4 의 소리를 불러와 앞쪽 무음을 잘라 재생
   screamBuf: null, screamOff: 0, screamLoading: false,
-  loadScream() {
-    if (this.screamBuf || this.screamLoading || !this.ctx) return; this.screamLoading = true;
-    fetch('scream.mp4').then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => this.ctx.decodeAudioData(b, res, rej))).then(buf => {
-      const d = buf.getChannelData(0); let i = 0; while (i < d.length && Math.abs(d[i]) < .03) i++;
-      this.screamOff = Math.max(0, i / buf.sampleRate - .02); this.screamBuf = buf;
-    }).catch(() => {}).finally(() => { this.screamLoading = false; });
-  },
   // 파일 효과음 (기차가 오는 소리 · 기차 경적)
   loadSamp(name, url) {
     const S2 = this.samp || (this.samp = {}); if (S2[name] || !this.ctx) return; S2[name] = 'loading';
@@ -558,12 +565,18 @@ const SFX = {
   trainCome() { this.playSamp('trainCome', .9); },
   trainHorn() { if (!this.playSamp('trainHorn', 1)) this.horn(); },
   screamOK() { return typeof arena !== 'undefined' && arena.mode === 'duel' && arena.duel && (arena.duel.style === 'sword' || arena.duel.style === 'sumo'); },
+  // 떨어질 때 "아아아—" 비명 (녹음 파일 없이 직접 만든 소리: 떨리며 내려가는 목소리 + 모음 필터)
   fallScream() {
-    if (!this.screamOK()) return;
-    if (!this.ok()) return; this.loadScream();
-    if (!this.screamBuf) return this.scream();
-    const c = this.ctx, s = c.createBufferSource(), g = c.createGain(); s.buffer = this.screamBuf; s.playbackRate.value = rnd(.94, 1.08);
-    g.gain.value = .9 * (this.mul || 1); s.connect(g); g.connect(this.out); s.start(c.currentTime, this.screamOff, Math.min(4, this.screamBuf.duration - this.screamOff));
+    if (!this.screamOK() || !this.ok()) return;
+    const c = this.ctx, t = c.currentTime, dur = rnd(1.1, 1.5), m = this.mul || 1, f0 = rnd(760, 980);
+    const o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0 * .82, t); o.frequency.linearRampToValueAtTime(f0, t + .1); o.frequency.exponentialRampToValueAtTime(f0 * .4, t + dur);
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.frequency.value = rnd(6, 8); lg.gain.value = f0 * .04; lfo.connect(lg); lg.connect(o.frequency);
+    const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g1 = c.createGain(), g2 = c.createGain(), g = c.createGain();
+    f1.type = f2.type = 'bandpass'; f1.frequency.value = 1050; f1.Q.value = 3; f2.frequency.value = 2500; f2.Q.value = 5; g1.gain.value = 1; g2.gain.value = .45;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.5 * m, t + .05); g.gain.setValueAtTime(.5 * m, t + dur * .55); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(f1); o.connect(f2); f1.connect(g1); f2.connect(g2); g1.connect(g); g2.connect(g); g.connect(this.out);
+    o.start(t); lfo.start(t); o.stop(t + dur + .05); lfo.stop(t + dur + .05);
   },
   osc(type, f0, f1, t0, dur, vol) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
@@ -695,7 +708,7 @@ const MUSIC = {
 };
 
 /* ───────── 상태 ───────── */
-const S = { roster: store.get('zs-roster', null), mode: store.get('zs-mode', 'zombie'), speed: .85, lite: store.get('zs-lite', false) };
+const S = { labelScale: store.get('zs-label-scale', 1), rankScale: store.get('zs-rank-scale', 1), roster: store.get('zs-roster', null), mode: store.get('zs-mode', 'zombie'), speed: .85, lite: store.get('zs-lite', false) };
 if (!Array.isArray(S.roster)) S.roster = [];
 let RUN = 0, Z = null, D = null, R = null, lastStage = null;
 let TS = 1; const GS = 230; // 배속, 달리기(땅) 속도 px/s
@@ -1215,14 +1228,14 @@ const arena = {
     for (const e of ents) {
       if (e.z) {
         const z = e.z; if (!z.name) continue; const s = this.sOf(z.d);
-        items.push({ ent: z, ax: z.x + 16 * s, ay: this.yOf(z.d) - 104 * s + z.rot * 70 * s, text: z.name, bg: 'rgba(18,30,14,.88)', fg: '#93d46d', size: 11 * crowd, pr: 0, alpha: .85 });
+        items.push({ ent: z, ax: z.x + 16 * s, ay: this.yOf(z.d) - 104 * s + z.rot * 70 * s, text: z.name, bg: 'rgba(18,30,14,.88)', fg: '#93d46d', size: 11 * crowd * S.labelScale, pr: 0, alpha: .85 });
         continue;
       }
       const h = e.h; if (h.alpha <= 0) continue;
       const s = this.sOf(h.d), isT = false, fallen = h.state === 'fallen', down = fallen || h.state === 'down' || h.state === 'bitten';
       items.push({ ent: h, ax: h.x + (down ? 50 : 8) * s, ay: this.yOf(h.d) - (down ? 40 : 100) * s, text: h.name,
         bg: isT ? (gold ? '#f6c445' : '#ff7b6b') : fallen ? '#ece4d6' : '#fffaf0', fg: isT ? (gold ? '#4a3b2f' : '#fff') : fallen ? '#8a7766' : '#4a3b2f',
-        size: isT ? Math.max(16, 22 * u) : Math.max(12, 14 * (.85 + .35 * h.d) * crowd), pr: isT ? 3 : fallen ? .5 : 1 + h.d, alpha: h.alpha });
+        size: (isT ? Math.max(16, 22 * u) : Math.max(12, 14 * (.85 + .35 * h.d) * crowd)) * S.labelScale, pr: isT ? 3 : fallen ? .5 : 1 + h.d, alpha: h.alpha });
     }
     items.sort((a, b) => b.pr - a.pr);
     const placed = [], top = 40, W = this.W;
@@ -2100,7 +2113,7 @@ const R3 = {
       const fallen = h.state === 'fallen' || h.state === 'down' || h.state === 'bitten' || (A.mode === 'duel' && !h.alive), foll = A.follow === h.id;
       const dist = this.cam.position.distanceTo(new THREE.Vector3(this.wx(h.x), 1, this.lz(h.d)));
       items.push({ h, ax: (v.x * .5 + .5) * W, ay: (-v.y * .5 + .5) * H, text: km && h.place ? `${h.place}등 ${h.name}` : h.name, fallen, foll, gauge: A.mode === 'duel' ? (h.alive && A.duel.ST.hp ? h.hp / 100 : null) : km && !h.place ? h.gauge : null, hpBar: A.mode === 'duel', ult: A.mode === 'duel' && h.alive && !A.replay && !NOSLOW.has(A.duel.style) ? h.ult : null, gold: km && h.place,
-        size: Math.max(11, Math.min(18, 300 / dist)) * (foll ? 1.25 : 1), pr: foll ? 3 : fallen ? .5 : 1 + (1 - dist / 80) });
+        size: Math.max(11, Math.min(18, 300 / dist)) * (foll ? 1.25 : 1) * S.labelScale, pr: foll ? 3 : fallen ? .5 : 1 + (1 - dist / 80) });
     }
     items.sort((a, b) => b.pr - a.pr);
     const placed = [], top = 40;
@@ -2151,10 +2164,10 @@ const LANES = [0, .25, .5, .75, 1], KS = 1.3; // 차선 위치, 카트 크기 �
 const laneOf = d => Math.max(0, Math.min(4, Math.round(d * 4)));
 let RC = null;
 const WEATHER = {
-  kind: 'clear', night: false, temp: null, ready: false, place: '', lat: 37.57, lon: 126.98,
+  kind: 'clear', night: false, temp: null, ready: false, place: '', lat: 37.57, lon: 126.98, at: null,
   label() { return ({ clear: '맑음', cloudy: '흐림', fog: '안개', rain: '비', snow: '눈', storm: '뇌우' })[this.kind] + (this.night ? ' · 밤' : ''); },
   icon() { return ({ clear: this.night ? '🌙' : '☀️', cloudy: '☁️', fog: '🌫️', rain: '🌧️', snow: '❄️', storm: '⛈️' })[this.kind]; },
-  // 지금 있는 곳의 날씨: 위치(허용 시)를 넉넉히 기다리고, 못 찾으면 서울. 15분마다 다시 확인
+  // 지금 있는 곳의 날씨: 위치(허용 시)를 넉넉히 기다리고, 못 찾으면 서울. 30분마다 다시 확인 (MET Norway 이용 조건)
   async load() {
     const pos = await new Promise(res => { if (!navigator.geolocation) return res(null); navigator.geolocation.getCurrentPosition(p => res(p.coords), () => res(null), { timeout: 20000, maximumAge: 600000 }); });
     if (pos) { this.lat = pos.latitude; this.lon = pos.longitude; }
@@ -2165,22 +2178,27 @@ const WEATHER = {
       this.place = g.city || g.locality || g.principalSubdivision || '';
     } catch (e) {}
     await this.refresh();
-    if (!this.timer) this.timer = setInterval(() => this.refresh(), 15 * 60 * 1000);
+    if (!this.timer) this.timer = setInterval(() => this.refresh(), 30 * 60 * 1000);
   },
   async refresh() {
     try {
-      const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + this.lat.toFixed(1) + '&longitude=' + this.lon.toFixed(1) + '&current=temperature_2m,weather_code,is_day,precipitation,snowfall,cloud_cover&timezone=auto');
-      const c = (await r.json()).current, w = c.weather_code;
-      let k = w >= 95 ? 'storm' : (w >= 71 && w <= 77) || w === 85 || w === 86 ? 'snow' : (w >= 51 && w <= 67) || (w >= 80 && w <= 82) ? 'rain' : w === 45 || w === 48 ? 'fog' : w >= 2 ? 'cloudy' : 'clear';
-      // 날씨 코드는 맑음인데 비·눈이 오고 있거나 구름이 많으면 실제에 가깝게 바꿈
-      if ((k === 'clear' || k === 'cloudy') && c.precipitation > 0) k = c.snowfall > 0 || c.temperature_2m <= 0 ? 'snow' : 'rain';
-      else if (k === 'clear' && c.cloud_cover >= 60) k = 'cloudy';
-      this.kind = k; this.night = c.is_day === 0; this.temp = Math.round(c.temperature_2m); this.ready = true;
+      // 좌표는 소수 첫째 자리(약 10km)까지만 보냄. 사용자 지정 헤더 없이 보내는 단순 요청 (브라우저 캐시가 응답의 만료 시각을 지킴)
+      const r = await fetch('https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=' + this.lat.toFixed(1) + '&lon=' + this.lon.toFixed(1));
+      if (!r.ok) throw new Error('weather ' + r.status);
+      const ts = (await r.json()).properties.timeseries, now = Date.now();
+      let cur = ts[0]; for (const e of ts) { if (Date.parse(e.time) <= now) cur = e; else break; }
+      const inst = cur.data.instant.details, nx = cur.data.next_1_hours || cur.data.next_6_hours || {}, sym = (nx.summary && nx.summary.symbol_code) || '', pr = (nx.details && nx.details.precipitation_amount) || 0;
+      let k = /thunder/.test(sym) ? 'storm' : /snow|sleet/.test(sym) ? 'snow' : /rain|drizzle/.test(sym) ? 'rain' : /fog/.test(sym) ? 'fog' : /cloudy/.test(sym) ? 'cloudy' : 'clear';
+      // 날씨 기호는 맑음인데 비·눈이 오고 있거나 구름이 많으면 실제에 가깝게 바꿈
+      if ((k === 'clear' || k === 'cloudy') && pr > 0) k = inst.air_temperature <= 0 ? 'snow' : 'rain';
+      else if (k === 'clear' && inst.cloud_area_fraction >= 60) k = 'cloudy';
+      const hr = new Date().getHours();
+      this.kind = k; this.night = /_night|_polartwilight/.test(sym) ? true : /_day/.test(sym) ? false : (hr < 6 || hr >= 19); this.temp = Math.round(inst.air_temperature); this.at = new Date(); this.ready = true;
     } catch (e) { if (!this.ready) this.ready = false; }
     R3.curMode = null; showWeather();
   }
 };
-function showWeather() { const b = $('#wxBadge'); if (!b) return; b.hidden = !WEATHER.ready; const src = $('#wxSrc'); if (src) src.hidden = b.hidden; if (WEATHER.ready) b.textContent = WEATHER.icon() + ' ' + (WEATHER.place ? WEATHER.place + ' ' : '') + WEATHER.label() + (WEATHER.temp != null ? ' · ' + WEATHER.temp + '°C' : ''); }
+function showWeather() { const b = $('#wxBadge'); if (!b) return; b.hidden = !WEATHER.ready; const src = $('#wxSrc'); if (src) { src.hidden = b.hidden; if (WEATHER.at) src.textContent = '날씨: MET Norway 자료 · ' + String(WEATHER.at.getHours()).padStart(2, '0') + ':' + String(WEATHER.at.getMinutes()).padStart(2, '0') + ' 기준'; } if (WEATHER.ready) b.textContent = WEATHER.icon() + ' ' + (WEATHER.place ? WEATHER.place + ' ' : '') + WEATHER.label() + (WEATHER.temp != null ? ' · ' + WEATHER.temp + '°C' : ''); }
 setTimeout(() => WEATHER.load(), 600);
 Object.assign(arena, {
   setupRace(people) {
@@ -5866,6 +5884,15 @@ $('#clearRoster').addEventListener('click', async () => {
 document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === S.mode; r.addEventListener('change', () => { S.mode = r.value; store.set('zs-mode', S.mode); }); });
 document.querySelectorAll('input[name=speed]').forEach(r => { r.checked = +r.value === +S.speed; r.addEventListener('change', () => { S.speed = +r.value; store.set('zs-speed', S.speed); }); });
 $('#lite').checked = !!S.lite;
+// 이름 크기 조정: 화면 속 이름표와 오른쪽 목록을 따로
+(() => {
+  const ls = $('#labelSize'), rs = $('#rankSize'), lv = $('#labelSizeV'), rv = $('#rankSizeV'), btn = $('#sizeBtn'), box = $('#sizer');
+  const apply = () => { lv.textContent = Math.round(S.labelScale * 100) + '%'; rv.textContent = Math.round(S.rankScale * 100) + '%'; $('#rank').style.setProperty('--rs', S.rankScale); };
+  ls.value = Math.round(S.labelScale * 100); rs.value = Math.round(S.rankScale * 100); apply();
+  ls.addEventListener('input', () => { S.labelScale = ls.value / 100; store.set('zs-label-scale', S.labelScale); apply(); });
+  rs.addEventListener('input', () => { S.rankScale = rs.value / 100; store.set('zs-rank-scale', S.rankScale); apply(); });
+  btn.addEventListener('click', () => { const open = box.hidden; box.hidden = !open; btn.setAttribute('aria-expanded', String(open)); });
+})();
 $('#lite').addEventListener('change', e => { S.lite = e.target.checked; store.set('zs-lite', S.lite); document.body.classList.toggle('lite', S.lite); });
 ['ropeBtn', 'chairBtn'].forEach((id, i) => $('#' + id).addEventListener('click', () => {
   if (S.roster.length < 2) { toast('추첨하려면 최소 2명이 필요합니다'); $('#one').focus(); return; }

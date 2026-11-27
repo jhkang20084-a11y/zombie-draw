@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://whoz-draw.web.app/sitemap.xml

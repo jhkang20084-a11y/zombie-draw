@@ -140,7 +140,6 @@ input:focus,textarea:focus{outline:none;border-color:var(--leaf-deep);box-shadow
 .wxsrc{position:absolute;z-index:5;top:calc(max(16px,env(safe-area-inset-top,0px)) + 40px);left:50%;transform:translateX(-50%);font-size:11px;line-height:1.5;padding:0 9px;border-radius:999px;background:rgba(255,250,240,.82);color:var(--ink);opacity:.9;text-decoration:underline;white-space:nowrap}
 .wxsrc:hover{opacity:1;background:#fffaf0}
 .privacy{max-width:560px;margin:0;font-size:13px;line-height:1.55;color:#7a6656;text-align:center}
-.example-note{margin-top:14px;padding:10px 14px;border:2.5px dashed var(--sun);border-radius:16px;color:#8a6a10;font-size:14px;background:var(--sun-pale)}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;max-height:340px;overflow:auto;padding:2px}
 .chip{display:inline-flex;align-items:center;gap:2px;padding:4px 6px 4px 14px;border:2px solid var(--ink);background:var(--paper-2);border-radius:999px;font-family:var(--font-display);font-size:16px}
 .chip button{width:28px;height:28px;border:0;background:transparent;color:var(--ink-soft);cursor:pointer;border-radius:50%;font-size:17px;line-height:1}
@@ -389,13 +388,12 @@ details.mini[open] summary .label{visibility:hidden}
           <button class="btn" type="submit">추가</button>
         </form>
         <div class="bulk">
-          <textarea id="bulk" placeholder="여러 명을 한 번에 붙여넣기&#10;줄바꿈·쉼표·띄어쓰기로 구분해요&#10;예) 김서준, 이하은, 박도윤" aria-label="여러 명 한 번에 붙여넣기"></textarea>
+          <textarea id="bulk" placeholder="여러 명을 한 번에 붙여넣기&#10;줄바꿈·쉼표·띄어쓰기로 구분해요" aria-label="여러 명 한 번에 붙여넣기"></textarea>
           <div class="row">
             <button class="btn" id="bulkAdd" type="button">붙여넣은 명단 추가</button>
             <button class="btn ghost danger" id="clearRoster" type="button">명단 비우기</button>
           </div>
         </div>
-        <div class="example-note" id="exampleNote" hidden>지금은 예시 명단이에요. 이름을 입력하면 예시가 지워지고 우리 반 명단으로 바뀌어요.</div>
         <div class="chips" id="chips" aria-live="polite"></div>
       </div>
 
@@ -697,9 +695,8 @@ const MUSIC = {
 };
 
 /* ───────── 상태 ───────── */
-const EXAMPLE = ['김서준', '이하은', '박도윤', '최지우', '정시우', '강서연', '조하준', '윤지아', '장예준', '임수아', '한지호', '오유나'];
-const S = { roster: store.get('zs-roster', null), isExample: false, mode: store.get('zs-mode', 'zombie'), speed: .85, lite: store.get('zs-lite', false) };
-if (!Array.isArray(S.roster) || !S.roster.length) { S.roster = EXAMPLE.slice(); S.isExample = true; }
+const S = { roster: store.get('zs-roster', null), mode: store.get('zs-mode', 'zombie'), speed: .85, lite: store.get('zs-lite', false) };
+if (!Array.isArray(S.roster)) S.roster = [];
 let RUN = 0, Z = null, D = null, R = null, lastStage = null;
 let TS = 1; const GS = 230; // 배속, 달리기(땅) 속도 px/s
 const sp = ms => Math.round(ms * S.speed / TS / (arena.slowK || 1));
@@ -3359,18 +3356,19 @@ Object.assign(arena, {
     // 다음 탈락자 정하기 (정해진 순서대로)
     if (D.go && !D.ended && !D.pending && alive.length > keep && D.t >= D.killAt) {
       const p = D.seq[D.idx], v = p && this.humans.find(x => x.id === p.id);
-      if (v && v.alive) { v.doomed = true; D.pending = v; D.pendT = D.t; v.how = v.r - edge <= 3 && Math.random() < .45 ? 'slow' : 'car'; v.frozen = false; v.killer = null; }
+      if (v && v.alive) { v.doomed = true; D.pending = v; D.pendT = D.t; v.how = v.r - edge <= 3 && Math.random() < .45 ? 'slow' : 'car'; if (v.how === 'car') { for (let r = v.r; r <= v.r + 6; r++) { const RR = hwyRow(H, r); if (RR && RR.t === 'river') { if (Math.random() < .45) v.how = 'water'; break; } } } v.frozen = false; v.killer = null; }
     }
     const pend = D.pending;
     if (pend && pend.how === 'car' && D.t - D.pendT > 10 && !pend.killer && pend.r - edge <= 3) pend.how = 'slow';
     for (const h of this.humans) {
       if (h.fall) { const q = D.t - h.fall.t0; h.y = -9 * q * q; h.x += dt * .4; if (q > 1.2) h.alpha = Math.max(0, h.alpha - dt * 2); if (h.alpha <= 0 && D.pending === h) this.hwyNext(alive); continue; }
+      if (h.sink != null) { const q = D.t - h.sink; h.y = -.2 - q * 1.4; if (q > .25 && !h.splash2) { h.splash2 = true; this.wsplat(h.x, -.1, h.z, ['#ffffff', '#cfefff'], 10, 2.5); } if (q > .9) h.alpha = 0; if (q > 1.3 && D.pending === h) this.hwyNext(alive); continue; }
       if (h.flat) { if (D.t - h.flatT > 1.4 && D.pending === h) this.hwyNext(alive); const FR = hwyRow(H, h.r); if (FR && FR.fallT != null) { h.y = -6 * (D.t - FR.fallT) ** 2; if (h.y < -40) h.alpha = 0; } continue; }
       if (!h.alive) continue;
       if (h.leap) { const q = (D.t - h.leap.t0) / .55; h.y = q < 1 ? Math.sin(Math.PI * q) * 1.9 : 0; if (q >= 1) h.leap = null; }
       if (h.hop) {
         const q = (D.t - h.hop.t0) / h.hop.dur;
-        if (q >= 1) { h.x = h.hop.tx; h.z = h.hop.tz; h.hop = null; if (!h.leap) h.y = 0; h.land = D.t; }
+        if (q >= 1) { h.x = h.hop.tx; h.z = h.hop.tz; h.hop = null; if (!h.leap) h.y = 0; h.land = D.t; if (h.diving) { h.diving = false; this.hwyDrown(h); } }
         else { h.x = h.hop.fx + (h.hop.tx - h.hop.fx) * q; h.z = h.hop.fz + (h.hop.tz - h.hop.fz) * q; if (!h.leap) h.y = Math.sin(Math.PI * q) * .55; }
         continue;
       }
@@ -3396,6 +3394,21 @@ Object.assign(arena, {
         const opts = [[0, -1], [0, 1]].map(([dr, dc]) => [h.r + dr, h.c + dc]).filter(([r, c]) => hwyWalk(H, r, c) && !H.occ.has(r * 1000 + c));
         if (opts.length && Math.random() < .55) { const [r, c] = opts[Math.floor(Math.random() * opts.length)]; this.hwyHopTo(h, r, c, .32); } else h.ang += rnd(-1.2, 1.2);
         continue;
+      }
+      if (h === pend && h.how === 'water') {
+        const CR = hwyRow(H, h.r), NR = hwyRow(H, h.r + 1), water = (RR, c) => RR && RR.t === 'river' && c >= 0 && c < H.W && RR.pad[c] === 0;
+        const dive = (r, c) => { this.hwyHopTo(h, r, c, .34); h.diving = true; h.nextT = D.t + 99; };
+        if (CR.t === 'river') { const sc = [h.c - 1, h.c + 1].find(c => water(CR, c)); if (sc != null) { dive(h.r, sc); continue; } }
+        if (water(NR, h.c)) { dive(h.r + 1, h.c); continue; }
+        if (NR && NR.t === 'river') {
+          const sd = [h.c - 1, h.c + 1].find(c => hwyWalk(H, h.r, c) && !H.occ.has(h.r * 1000 + c) && water(NR, c));
+          if (sd != null) { this.hwyHopTo(h, h.r, sd); h.nextT = D.t + .35; continue; }
+          if (!H.occ.has((h.r + 1) * 1000 + h.c) && hwyWalk(H, h.r + 1, h.c)) { this.hwyHopTo(h, h.r + 1, h.c); h.nextT = D.t + .35; continue; }
+        }
+        let riv = null; for (let r = h.r + 1; r <= h.r + 6 && riv == null; r++) { const RR = hwyRow(H, r); if (RR && RR.t === 'river') riv = r; }
+        if (riv == null || D.t - D.pendT > 9) { h.how = h.r - edge <= 3 ? 'slow' : 'car'; h.nextT = D.t + .1; continue; }
+        const best = this.hwyPath(h, riv - 1, edge + 1); if (best && best.first) this.hwyHopTo(h, best.first[0], best.first[1]);
+        h.nextT = D.t + .3 + rnd(.05, .3); continue;
       }
       if (h === pend && h.how === 'car') {
         const R = hwyRow(H, h.r);
@@ -3466,6 +3479,13 @@ Object.assign(arena, {
         }
       }
     }
+  },
+  hwyDrown(v) {
+    const D = this.duel, H = D.hwy;
+    v.alive = false; v.doomed = false; D.idx++; v.sink = D.t; v.st = 'sink'; H.occ.delete(v.r * 1000 + v.c);
+    D.kills.push({ t: D.t, killer: -1, victim: v.id, how: 'water' });
+    this.kSfx(v, 'splash'); this.wsplat(v.x, 0, v.z, ['#ffffff', '#bfe9ff', '#7fd0ff', '#4fb6e8'], 34, 5.5);
+    if (this.onOut) this.onOut(v);
   },
   hwyNext(alive) {
     const D = this.duel; D.pending = null; const n = this.humans.filter(h => h.alive).length; D.killAt = D.t + (n <= 4 ? 2.2 : n > 14 ? .5 : 1.1);
@@ -5815,7 +5835,7 @@ async function countdown(label, tok) {
 }
 
 /* ───────── 명단 ───────── */
-function saveRoster() { store.set('zs-roster', S.isExample ? null : S.roster); }
+function saveRoster() { store.set('zs-roster', S.roster); }
 function parseNames(text) {
   return text.split(/[\n\r,;\t·]+/).flatMap(s => {
     s = s.trim().replace(/^\d+[.)]\s*/, ''); if (!s) return [];
@@ -5825,7 +5845,6 @@ function parseNames(text) {
 }
 function addNames(list) {
   if (!list.length) { toast('추가할 이름이 없습니다. 이름을 입력해 주세요.'); return; }
-  if (S.isExample) { S.roster = []; S.isExample = false; }
   const have = new Set(S.roster); let added = 0, dup = 0; const fresh = new Set();
   list.forEach(n => { if (have.has(n)) { dup++; return; } have.add(n); S.roster.push(n); fresh.add(n); added++; });
   saveRoster(); renderRoster(fresh);
@@ -5833,16 +5852,16 @@ function addNames(list) {
 }
 function renderRoster(fresh = new Set()) {
   const box = $('#chips');
-  $('#rosterCount').textContent = `${S.roster.length}명`; $('#exampleNote').hidden = !S.isExample;
+  $('#rosterCount').textContent = `${S.roster.length}명`;
   if (!S.roster.length) { box.innerHTML = '<div class="empty">명단이 비어 있습니다. 위 칸에 이름을 입력하거나 여러 명을 붙여넣으세요.</div>'; return; }
   box.innerHTML = S.roster.map((n, i) => `<span class="chip${fresh.has(n) ? ' new' : ''}">${esc(n)}<button type="button" data-i="${i}" aria-label="${esc(n)} 삭제">×</button></span>`).join('');
 }
-$('#chips').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; S.isExample = false; S.roster.splice(+b.dataset.i, 1); saveRoster(); renderRoster(); });
+$('#chips').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; S.roster.splice(+b.dataset.i, 1); saveRoster(); renderRoster(); });
 $('#oneForm').addEventListener('submit', e => { e.preventDefault(); addNames(parseNames($('#one').value)); $('#one').value = ''; $('#one').focus(); });
 $('#bulkAdd').addEventListener('click', () => { addNames(parseNames($('#bulk').value)); $('#bulk').value = ''; });
 $('#clearRoster').addEventListener('click', async () => {
   if (!S.roster.length) return;
-  if (await confirmBox('명단 비우기', `명단의 ${S.roster.length}명을 모두 지울까요?`, '모두 지우기')) { S.roster = []; S.isExample = false; saveRoster(); renderRoster(); toast('명단을 비웠습니다'); }
+  if (await confirmBox('명단 비우기', `명단의 ${S.roster.length}명을 모두 지울까요?`, '모두 지우기')) { S.roster = []; saveRoster(); renderRoster(); toast('명단을 비웠습니다'); }
 });
 document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === S.mode; r.addEventListener('change', () => { S.mode = r.value; store.set('zs-mode', S.mode); }); });
 document.querySelectorAll('input[name=speed]').forEach(r => { r.checked = +r.value === +S.speed; r.addEventListener('change', () => { S.speed = +r.value; store.set('zs-speed', S.speed); }); });
@@ -6152,7 +6171,7 @@ $('#rBack').addEventListener('click', () => { $('#result').hidden = true; });
 $('#rHome').addEventListener('click', goHome);
 $('#rReset').addEventListener('click', async () => {
   if (!(await confirmBox('전체 초기화', '명단과 추첨 결과를 모두 지우고 처음 상태로 돌아갑니다. 되돌릴 수 없습니다.', '초기화'))) return;
-  cancelRun(); S.roster = []; S.isExample = false; saveRoster(); Z = D = R = null; lastStage = null; renderRoster(); show('setup'); setStatus('대기 중 · 명단 확인', null); toast('모두 초기화했습니다');
+  cancelRun(); S.roster = []; saveRoster(); Z = D = R = null; lastStage = null; renderRoster(); show('setup'); setStatus('대기 중 · 명단 확인', null); toast('모두 초기화했습니다');
 });
 function goHome() { cancelRun(); MUSIC.reset(); renderRoster(); show('setup'); setStatus('대기 중 · 명단 확인', null); }
 
